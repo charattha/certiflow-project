@@ -4,8 +4,18 @@ import { authenticateToken, requireRole } from '../middleware/auth';
 import { generateDocument } from '../services/document';
 import { SystemLogger } from '../utils/logger';
 import { getPrisma } from '../utils/prisma';
-import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+
+/**
+ * Cloudflare Worker friendly hashing using SubtleCrypto (SHA-256).
+ */
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 const admin = new Hono();
 
@@ -79,8 +89,8 @@ admin.post('/users/:id/reset-password', async (c) => {
   if (employee?.thai_id) rawIdSource = employee.thai_id;
   else if (employee?.passport_no) rawIdSource = employee.passport_no;
 
-  const newPassword = rawIdSource.length >= 6 ? rawIdSource.slice(-6) : 'password123';
-  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  const newPassword = rawIdSource.length >= 6 ? rawIdSource.slice(-6) : 'admin123';
+  const hashedPassword = await hashPassword(newPassword);
 
   await prisma.user.update({
     where: { id: targetId },
@@ -96,7 +106,7 @@ admin.post('/users/:id/reset-password', async (c) => {
     targetRole: targetUser.role
   }, c.env);
 
-  return c.json({ message: 'Password reset successfully. User must change password on next login.' });
+  return c.json({ message: 'Password reset successfully', defaultPassword: newPassword });
 });
 
 const singleUserSchema = z.object({
@@ -137,8 +147,8 @@ admin.post('/users', async (c) => {
   if (existingUser) return c.json({ error: 'User with this email already exists' }, 400);
 
   const rawIdSource = thai_id || passport_no || '';
-  const defaultPassword = rawIdSource.length >= 6 ? rawIdSource.slice(-6) : 'password123';
-  const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+  const defaultPassword = rawIdSource.length >= 6 ? rawIdSource.slice(-6) : 'admin123';
+  const hashedPassword = await hashPassword(defaultPassword);
 
   const newUser = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
@@ -169,7 +179,7 @@ admin.post('/users', async (c) => {
 
   await SystemLogger.logAction(requestorId, requestorRole, 'USER_CREATED', newUser.id, { role }, c.env);
 
-  return c.json({ message: 'User created successfully', userId: newUser.id }, 201);
+  return c.json({ message: 'User created successfully', userId: newUser.id, defaultPassword }, 201);
 });
 
 admin.delete('/users/:id', requireRole(['SUPER_ADMIN']), async (c) => {

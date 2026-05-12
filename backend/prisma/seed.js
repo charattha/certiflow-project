@@ -1,48 +1,35 @@
-import { PrismaClient, Role } from '@prisma/client';
-import crypto from 'crypto';
+const { PrismaClient } = require('@prisma/client');
+const crypto = require('crypto');
 
 const prisma = new PrismaClient();
 
-function hashPassword(password: string): string {
+function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
 async function main() {
   console.log(`Start seeding ...`);
-
-  // SHA-256 hash for 'admin123'
   const hashedPassword = hashPassword('admin123');
 
-  // Super Admin
-  const superAdmin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'super@certipaws.com' },
     update: { password: hashedPassword },
-    create: {
-      email: 'super@certipaws.com',
-      password: hashedPassword,
-      role: Role.SUPER_ADMIN,
-    },
+    create: { email: 'super@certipaws.com', password: hashedPassword, role: 'SUPER_ADMIN' },
   });
 
-  // General Admin
-  const genAdmin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'admin@certipaws.com' },
     update: { password: hashedPassword },
-    create: {
-      email: 'admin@certipaws.com',
-      password: hashedPassword,
-      role: Role.GENERAL_ADMIN,
-    },
+    create: { email: 'admin@certipaws.com', password: hashedPassword, role: 'GENERAL_ADMIN' },
   });
 
-  // Regular Employee (Somchai Jaidee)
-  const employeeUser = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: 'somchai@certipaws.com' },
     update: { password: hashedPassword },
     create: {
       email: 'somchai@certipaws.com',
       password: hashedPassword,
-      role: Role.EMPLOYEE,
+      role: 'EMPLOYEE',
       employee: {
         create: {
           employeeId: 'EMP-10293',
@@ -55,14 +42,11 @@ async function main() {
     },
   });
 
-  console.log({ superAdmin, genAdmin, employeeUser });
   console.log(`Seeding finished.`);
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
+  .then(async () => { await prisma.$disconnect(); })
   .catch(async (e) => {
     console.error(e);
     await prisma.$disconnect();
