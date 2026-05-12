@@ -1,0 +1,14 @@
+﻿src/routes/admin.ts(22,5): error TS2322: Type '{ role: string; } | { role?: undefined; }' is not assignable to type 'UserWhereInput | undefined'.
+  Type '{ role: string; }' is not assignable to type 'UserWhereInput'.
+    Types of property 'role' are incompatible.
+      Type 'string' is not assignable to type 'Role | EnumRoleFilter<"User"> | undefined'.
+src/routes/admin.ts(70,14): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/admin.ts(83,18): error TS2339: Property 'employee' does not exist on type '{ email: string; password: string; id: string; role: Role; failedLoginAttempts: number; lockoutUntil: Date | null; createdAt: Date; updatedAt: Date; }'.
+src/routes/admin.ts(83,50): error TS2339: Property 'employee' does not exist on type '{ email: string; password: string; id: string; role: Role; failedLoginAttempts: number; lockoutUntil: Date | null; createdAt: Date; updatedAt: Date; }'.
+src/routes/admin.ts(84,30): error TS2339: Property 'employee' does not exist on type '{ email: string; password: string; id: string; role: Role; failedLoginAttempts: number; lockoutUntil: Date | null; createdAt: Date; updatedAt: Date; }'.
+src/routes/admin.ts(90,14): error TS2322: Type 'string | string[]' is not assignable to type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/admin.ts(99,78): error TS2345: Argument of type 'string | string[]' is not assignable to parameter of type 'string | undefined'.
+  Type 'string[]' is not assignable to type 'string'.
+src/routes/admin.ts(127,109): error TS2339: Property 'errors' does not exist on type 'ZodError<{ emp_id: string; first_name: string; last_name: string; email: string; thai_id?: string | undefined; department?: string | undefined; position?: string | undefined; }[]>'.

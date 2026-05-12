@@ -1,0 +1,73 @@
+[
+  {
+    "attempt": 0,
+    "payload": {
+      "email": "' OR 1=1 --",
+      "password": "password"
+    },
+    "status": 400,
+    "data": {
+      "success": false,
+      "message": "Validation failed",
+      "errors": {
+        "_errors": [],
+        "body": {
+          "_errors": [],
+          "email": {
+            "_errors": [
+              "Invalid email address"
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "attempt": 1,
+    "payload": {
+      "email": "admin@certipaws.com' --",
+      "password": "password"
+    },
+    "status": 400,
+    "data": {
+      "success": false,
+      "message": "Validation failed",
+      "errors": {
+        "_errors": [],
+        "body": {
+          "_errors": [],
+          "email": {
+            "_errors": [
+              "Invalid email address"
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "attempt": 2,
+    "payload": {
+      "email": {
+        "$gt": ""
+      },
+      "password": "password"
+    },
+    "status": 400,
+    "data": {
+      "success": false,
+      "message": "Validation failed",
+      "errors": {
+        "_errors": [],
+        "body": {
+          "_errors": [],
+          "email": {
+            "_errors": [
+              "Invalid input: expected string, received object"
+            ]
+          }
+        }
+      }
+    }
+  }
+]

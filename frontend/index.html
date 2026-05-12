@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/hireflow.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CertiFlow</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              "brand-red": "#A0072B",
+              "brand-dark": "#262324",
+              "brand-surface": "#312D2E",
+            },
+            fontFamily: {
+              sans: ["Prompt", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+  </body>
+</html>

@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")       // Pooled connection (port 6543) — used at runtime
+  directUrl = env("DIRECT_URL")         // Direct connection (port 5432) — used for migrations
+}
+
+enum Role {
+  EMPLOYEE
+  GENERAL_ADMIN
+  SUPER_ADMIN
+}
+
+enum RequestStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+}
+
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  password            String
+  role                Role      @default(EMPLOYEE)
+  mustChangePassword  Boolean   @default(true) // Force change on first login or reset
+  employee            Employee?
+  failedLoginAttempts Int       @default(0)
+  lockoutUntil        DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model Employee {
+  id               String            @id @default(uuid())
+  employeeId       String            @unique // e.g., EMP-10293
+  firstName        String
+  lastName         String
+  thai_id          String?           // For default password generation & bulk upsert
+  passport_no      String?           // Alternative for default password generation
+  department       String?
+  position         String?
+  userId           String            @unique
+  user             User              @relation(fields: [userId], references: [id])
+  documentRequests DocumentRequest[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model DocumentRequest {
+  id             String        @id @default(uuid())
+  requestId      String        @unique // e.g., REQ-001
+  docType        String        // e.g., salary_cert, emp_cert
+  docLang        String        // TH or EN
+  reason         String        // e.g., financial, visa
+  status         RequestStatus @default(PENDING)
+  fileUrl        String?       // URL or path to generated file
+  expiresAt      DateTime?     // When the file should be cleaned up
+  templateFields Json?         // Key-value pairs for .docx placeholder fields
+  employeeId     String
+  employee       Employee      @relation(fields: [employeeId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model SystemAuditLog {
+  id          String   @id @default(uuid())
+  actorId     String   // ID of the user performing the action
+  actorRole   String   // Role of the actor (SUPER_ADMIN, GENERAL_ADMIN, EMPLOYEE)
+  action      String   // e.g., 'PASSWORD_RESET', 'BULK_UPSERT', etc.
+  targetId    String?  // ID of the user/entity being affected (if applicable)
+  details     Json?    // Any additional data (e.g., changes made)
+  createdAt   DateTime @default(now())
+}
