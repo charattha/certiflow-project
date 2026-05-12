@@ -1,37 +1,42 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { Context, Next } from 'hono';
+import { jwtVerify } from 'jose';
+import { getCookie } from 'hono/cookie';
 
-if (!process.env.JWT_SECRET) {
-  throw new Error('FATAL: JWT_SECRET environment variable is not set. Server cannot start.');
-}
-const JWT_SECRET = process.env.JWT_SECRET;
-
-export interface AuthRequest extends Request {
-  user?: any;
-}
-
-export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
-  // Try to get token from cookie first, then from Authorization header
-  let token = req.cookies.token;
-
-  if (!token && req.headers.authorization?.startsWith('Bearer ')) {
-    token = req.headers.authorization.split(' ')[1];
+export const authenticateToken = async (c: Context, next: Next) => {
+  const JWT_SECRET = c.env.JWT_SECRET;
+  if (!JWT_SECRET) {
+    return c.json({ error: 'JWT_SECRET not configured' }, 500);
   }
 
-  if (!token) return res.status(401).json({ error: 'Access denied. No token provided.' });
+  let token = getCookie(c, 'token');
 
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) return res.status(403).json({ error: 'Invalid or expired token' });
-    req.user = user;
-    next();
-  });
+  if (!token) {
+    const authHeader = c.req.header('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
+  }
+
+  if (!token) {
+    return c.json({ error: 'Access denied. No token provided.' }, 401);
+  }
+
+  try {
+    const secret = new TextEncoder().encode(JWT_SECRET);
+    const { payload } = await jwtVerify(token, secret);
+    c.set('user', payload);
+    await next();
+  } catch (err) {
+    return c.json({ error: 'Invalid or expired token' }, 403);
+  }
 };
 
 export const requireRole = (roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Forbidden: Insufficient role' });
+  return async (c: Context, next: Next) => {
+    const user = c.get('user');
+    if (!user || !roles.includes(user.role)) {
+      return c.json({ error: 'Forbidden: Insufficient role' }, 403);
     }
-    next();
+    await next();
   };
 };

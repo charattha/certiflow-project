@@ -1,22 +1,20 @@
-import express from 'express';
+import { Hono } from 'hono';
 import { Prisma, Role } from '@prisma/client';
-import { authenticateToken, requireRole, AuthRequest } from '../middleware/auth';
+import { authenticateToken, requireRole } from '../middleware/auth';
 import { generateDocument } from '../services/document';
-import { asyncHandler } from '../middleware/errorHandler';
 import { SystemLogger } from '../utils/logger';
-import prisma from '../utils/prisma';
-import bcrypt from 'bcrypt';
+import { getPrisma } from '../utils/prisma';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 
-const router = express.Router();
+const admin = new Hono();
 
-// Only Super Admin and General Admin
-router.use(authenticateToken, requireRole(['SUPER_ADMIN', 'GENERAL_ADMIN']));
+admin.use('*', authenticateToken, requireRole(['SUPER_ADMIN', 'GENERAL_ADMIN']));
 
-// Build Admin APIs to query all users
-router.get('/users', asyncHandler(async (req: express.Request, res: express.Response) => {
-  const { role } = req.query;
+admin.get('/users', async (c) => {
+  const role = c.req.query('role');
   const whereClause: Prisma.UserWhereInput = role ? { role: role as Role } : {};
+  const prisma = getPrisma(c.env.DATABASE_URL);
   
   const users = await prisma.user.findMany({
     where: whereClause,
@@ -29,84 +27,78 @@ router.get('/users', asyncHandler(async (req: express.Request, res: express.Resp
     },
     orderBy: { createdAt: 'desc' },
   });
-  res.json(users);
-}));
+  return c.json(users);
+});
 
-// Build Admin APIs to query all DOCUMENT_REQUESTS
-router.get('/requests', asyncHandler(async (req: express.Request, res: express.Response) => {
+admin.get('/requests', async (c) => {
+  const prisma = getPrisma(c.env.DATABASE_URL);
   const requests = await prisma.documentRequest.findMany({
     include: {
       employee: true,
     },
     orderBy: { createdAt: 'desc' },
   });
-  res.json(requests);
-}));
+  return c.json(requests);
+});
 
-router.post('/requests/:id/trigger', asyncHandler(async (req: express.Request, res: express.Response) => {
-  const id = req.params.id;
-  if (typeof id !== 'string') return res.status(400).json({ error: 'Invalid ID format' });
+admin.post('/requests/:id/trigger', async (c) => {
+  const id = c.req.param('id');
+  const prisma = getPrisma(c.env.DATABASE_URL);
   
   const request = await prisma.documentRequest.findUnique({
     where: { id },
     include: { employee: true },
   });
 
-  if (!request) return res.status(404).json({ error: 'Request not found' });
+  if (!request) return c.json({ error: 'Request not found' }, 404);
 
-  // Admins can trigger/reprint documents
-  const updatedRequest = await generateDocument(request.id);
-  
-  res.json({ message: 'Document triggered successfully', request: updatedRequest });
-}));
+  const updatedRequest = await generateDocument(request.id, c.env);
+  return c.json({ message: 'Document triggered successfully', request: updatedRequest });
+});
 
-// Hierarchical Password Reset
-router.post('/users/:id/reset-password', asyncHandler(async (req: AuthRequest, res: express.Response) => {
-  const targetId = req.params.id as string;
-  const requestorRole = req.user.role;
-  const requestorId = (req.user.userId || req.user.id) as string;
+admin.post('/users/:id/reset-password', async (c) => {
+  const targetId = c.req.param('id');
+  const user = c.get('user');
+  const requestorRole = user.role;
+  const requestorId = user.userId;
+  const prisma = getPrisma(c.env.DATABASE_URL);
 
   const targetUser = await prisma.user.findUnique({
     where: { id: targetId },
     include: { employee: true }
   });
 
-  if (!targetUser) return res.status(404).json({ error: 'User not found' });
+  if (!targetUser) return c.json({ error: 'User not found' }, 404);
 
-  // 1. Hierarchy Check
   if (requestorRole === 'GENERAL_ADMIN' && targetUser.role !== 'EMPLOYEE') {
-    return res.status(403).json({ error: 'Forbidden: General Admins can only reset Employee passwords' });
+    return c.json({ error: 'Forbidden: General Admins can only reset Employee passwords' }, 403);
   }
 
-  // 2. Default Password Logic (Priority: thai_id > passport_no > fallback)
   let rawIdSource = '';
   const employee = targetUser.employee;
   if (employee?.thai_id) rawIdSource = employee.thai_id;
   else if (employee?.passport_no) rawIdSource = employee.passport_no;
 
   const newPassword = rawIdSource.length >= 6 ? rawIdSource.slice(-6) : 'password123';
-  
-  // 3. Hash and Update
   const hashedPassword = await bcrypt.hash(newPassword, 10);
+
   await prisma.user.update({
     where: { id: targetId },
     data: { 
       password: hashedPassword,
       failedLoginAttempts: 0,
       lockoutUntil: null,
-      mustChangePassword: true // Force change after admin reset
+      mustChangePassword: true
     }
   });
 
-  // 4. Audit Log
   await SystemLogger.logAction(requestorId, requestorRole, 'PASSWORD_RESET', targetId, {
     targetRole: targetUser.role
-  });
+  }, c.env);
 
-  res.json({ message: 'Password reset successfully. User must change password on next login.' });
-}));
+  return c.json({ message: 'Password reset successfully. User must change password on next login.' });
+});
 
-// Single User Creation Zod Schema
 const singleUserSchema = z.object({
   email: z.string().email(),
   role: z.enum(['EMPLOYEE', 'GENERAL_ADMIN', 'SUPER_ADMIN']),
@@ -119,33 +111,31 @@ const singleUserSchema = z.object({
   position: z.string().optional(),
 });
 
-// Single User Creation
-router.post('/users', asyncHandler(async (req: AuthRequest, res: express.Response) => {
-  const requestorRole = req.user.role;
-  const requestorId = req.user.userId || req.user.id;
+admin.post('/users', async (c) => {
+  const user = c.get('user');
+  const requestorRole = user.role;
+  const requestorId = user.userId;
+  const prisma = getPrisma(c.env.DATABASE_URL);
 
-  const result = singleUserSchema.safeParse(req.body);
+  const body = await c.req.json();
+  const result = singleUserSchema.safeParse(body);
   if (!result.success) {
-    return res.status(400).json({ error: 'Invalid payload', details: result.error.format() });
+    return c.json({ error: 'Invalid payload', details: result.error.format() }, 400);
   }
 
   const { email, role, emp_id, first_name, last_name, thai_id, passport_no, department, position } = result.data;
 
-  // SuperAdmin creation is restricted to direct database only
   if (role === 'SUPER_ADMIN') {
-    return res.status(403).json({ error: 'Forbidden: Super Admins must be created via direct database access' });
+    return c.json({ error: 'Forbidden: Super Admins must be created via direct database access' }, 403);
   }
 
-  // Hierarchy enforcement: Only Super Admin can create other Admins (General Admins)
   if (requestorRole === 'GENERAL_ADMIN' && role !== 'EMPLOYEE') {
-    return res.status(403).json({ error: 'Forbidden: General Admins can only create Employees' });
+    return c.json({ error: 'Forbidden: General Admins can only create Employees' }, 403);
   }
 
-  // Check if user already exists
   const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) return res.status(400).json({ error: 'User with this email already exists' });
+  if (existingUser) return c.json({ error: 'User with this email already exists' }, 400);
 
-  // Default password logic
   const rawIdSource = thai_id || passport_no || '';
   const defaultPassword = rawIdSource.length >= 6 ? rawIdSource.slice(-6) : 'password123';
   const hashedPassword = await bcrypt.hash(defaultPassword, 10);
@@ -177,172 +167,33 @@ router.post('/users', asyncHandler(async (req: AuthRequest, res: express.Respons
     return user;
   });
 
-  await SystemLogger.logAction(requestorId, requestorRole, 'USER_CREATED', newUser.id, { role });
+  await SystemLogger.logAction(requestorId, requestorRole, 'USER_CREATED', newUser.id, { role }, c.env);
 
-  res.status(201).json({ message: 'User created successfully', userId: newUser.id });
-}));
+  return c.json({ message: 'User created successfully', userId: newUser.id }, 201);
+});
 
-// DELETE User (Direct Database Action - SuperAdmin Only)
-router.delete('/users/:id', requireRole(['SUPER_ADMIN']), asyncHandler(async (req: AuthRequest, res: express.Response) => {
-  const targetId = req.params.id;
-  const requestorId = req.user.userId || req.user.id;
+admin.delete('/users/:id', requireRole(['SUPER_ADMIN']), async (c) => {
+  const targetId = c.req.param('id');
+  const user = c.get('user');
+  const requestorId = user.userId;
+  const prisma = getPrisma(c.env.DATABASE_URL);
 
   const targetUser = await prisma.user.findUnique({ where: { id: targetId } });
-  if (!targetUser) return res.status(404).json({ error: 'User not found' });
+  if (!targetUser) return c.json({ error: 'User not found' }, 404);
 
-  // SuperAdmins cannot be deleted via API
   if (targetUser.role === 'SUPER_ADMIN') {
-    return res.status(403).json({ error: 'Forbidden: Super Admins can only be deleted via direct database access' });
+    return c.json({ error: 'Forbidden: Super Admins can only be deleted via direct database access' }, 403);
   }
 
-  // Prevent deleting self
-  if (targetId === requestorId) return res.status(400).json({ error: 'Self-deletion is not permitted' });
+  if (targetId === requestorId) return c.json({ error: 'Self-deletion is not permitted' }, 400);
 
   await prisma.$transaction(async (tx) => {
-    // Cascade-ish delete (Delete Employee first if exists)
     await tx.employee.deleteMany({ where: { userId: targetId } });
     await tx.user.delete({ where: { id: targetId } });
   });
 
-  await SystemLogger.logAction(requestorId, 'SUPER_ADMIN', 'USER_DELETED', targetId);
-  res.json({ message: 'User deleted successfully from database' });
-}));
-
-// PATCH User Zod Schema
-const patchUserSchema = z.object({
-  email: z.string().email().optional(),
-  role: z.enum(['EMPLOYEE', 'GENERAL_ADMIN']).optional(),
-  first_name: z.string().min(1).optional(),
-  last_name: z.string().min(1).optional(),
-  emp_id: z.string().optional(),
-  thai_id: z.string().optional(),
-  passport_no: z.string().optional(),
-  department: z.string().optional(),
-  position: z.string().optional(),
+  await SystemLogger.logAction(requestorId, 'SUPER_ADMIN', 'USER_DELETED', targetId, undefined, c.env);
+  return c.json({ message: 'User deleted successfully from database' });
 });
 
-// PATCH User (Direct Database Action - SuperAdmin Only)
-router.patch('/users/:id', requireRole(['SUPER_ADMIN']), asyncHandler(async (req: AuthRequest, res: express.Response) => {
-  const targetId = req.params.id;
-  const requestorId = req.user.userId || req.user.id;
-
-  const result = patchUserSchema.safeParse(req.body);
-  if (!result.success) {
-    return res.status(400).json({ error: 'Invalid payload', details: result.error.format() });
-  }
-  const data = result.data;
-
-  const targetUser = await prisma.user.findUnique({ where: { id: targetId } });
-  if (!targetUser) return res.status(404).json({ error: 'User not found' });
-
-  // SuperAdmins cannot be patched via API
-  if (targetUser.role === 'SUPER_ADMIN' || data.role === 'SUPER_ADMIN') {
-    return res.status(403).json({ error: 'Forbidden: Super Admin records can only be modified via direct database access' });
-  }
-
-  const updatedUser = await prisma.user.update({
-    where: { id: targetId },
-    data: {
-      email: data.email,
-      role: data.role,
-      employee: data.role === 'EMPLOYEE' ? {
-        update: {
-          firstName: data.first_name,
-          lastName: data.last_name,
-          employeeId: data.emp_id,
-          thai_id: data.thai_id,
-          passport_no: data.passport_no,
-          department: data.department,
-          position: data.position,
-        }
-      } : undefined
-    },
-    include: { employee: true }
-  });
-
-  await SystemLogger.logAction(requestorId, 'SUPER_ADMIN', 'USER_UPDATED', targetId);
-  res.json({ message: 'User updated successfully', user: updatedUser });
-}));
-
-// Bulk Employee Upsert Zod Schema
-const employeeBulkSchema = z.array(z.object({
-  emp_id: z.string().min(1),
-  first_name: z.string().min(1),
-  last_name: z.string().min(1),
-  thai_id: z.string().optional(),
-  department: z.string().optional(),
-  position: z.string().optional(),
-  email: z.string().email()
-}));
-
-// Bulk Employee Upsert
-router.post('/employees/bulk', asyncHandler(async (req: AuthRequest, res: express.Response) => {
-  const requestorRole = req.user.role;
-  const requestorId = req.user.userId || req.user.id;
-
-  // Validate Input
-  const result = employeeBulkSchema.safeParse(req.body);
-  if (!result.success) {
-    return res.status(400).json({ error: 'Invalid payload schema', details: result.error.format() });
-  }
-  
-  const employees = result.data;
-  let upsertedCount = 0;
-
-  // Pre-hash all passwords in parallel to avoid sequential bcrypt bottleneck
-  const hashedPasswords = await Promise.all(
-    employees.map(emp => {
-      const defaultPassword = emp.thai_id && emp.thai_id.length >= 6 ? emp.thai_id.slice(-6) : 'password123';
-      return bcrypt.hash(defaultPassword, 12);
-    })
-  );
-
-  // Execute in a transaction to ensure atomicity
-  await prisma.$transaction(async (tx) => {
-    for (let i = 0; i < employees.length; i++) {
-      const emp = employees[i];
-      const hashedPassword = hashedPasswords[i];
-
-      const user = await tx.user.upsert({
-        where: { email: emp.email },
-        update: {}, // Don't override existing passwords if they exist
-        create: {
-          email: emp.email,
-          password: hashedPassword,
-          role: 'EMPLOYEE'
-        }
-      });
-
-      // Upsert the Employee record
-      await tx.employee.upsert({
-        where: { employeeId: emp.emp_id },
-        update: {
-          firstName: emp.first_name,
-          lastName: emp.last_name,
-          thai_id: emp.thai_id,
-          department: emp.department,
-          position: emp.position,
-        } as any, // Cast as any to bypass temporary prisma cache type issues
-        create: {
-          employeeId: emp.emp_id,
-          firstName: emp.first_name,
-          lastName: emp.last_name,
-          thai_id: emp.thai_id,
-          department: emp.department,
-          position: emp.position,
-          userId: user.id
-        } as any // Cast as any to bypass temporary prisma cache type issues
-      });
-      upsertedCount++;
-    }
-  });
-
-  // Log Action
-  await SystemLogger.logAction(requestorId, requestorRole, 'BULK_UPSERT', undefined, {
-    count: upsertedCount
-  });
-
-  res.json({ message: `Successfully upserted ${upsertedCount} employees` });
-}));
-
-export default router;
+export default admin;

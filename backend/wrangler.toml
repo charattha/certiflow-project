@@ -1,0 +1,10 @@
+name = "certiflow-backend"
+main = "src/index.ts"
+compatibility_date = "2026-05-12"
+compatibility_flags = [ "nodejs_compat" ]
+
+[vars]
+NODE_ENV = "production"
+
+# Note: DATABASE_URL and JWT_SECRET should be set via 'wrangler secret put' 
+# or in the Cloudflare Dashboard for production.

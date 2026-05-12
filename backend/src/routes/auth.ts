@@ -1,38 +1,17 @@
-import express from 'express';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { RateLimiterMemory } from 'rate-limiter-flexible';
+import { Hono } from 'hono';
+import bcrypt from 'bcryptjs';
+import { SignJWT } from 'jose';
+import { setCookie, deleteCookie } from 'hono/cookie';
 import { z } from 'zod';
-import prisma from '../utils/prisma';
+import { getPrisma } from '../utils/prisma';
 import { validateRequest, schemas } from '../middleware/validator';
-import { asyncHandler } from '../middleware/errorHandler';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 
-const router = express.Router();
+const auth = new Hono();
 
-if (!process.env.JWT_SECRET) {
-  throw new Error('FATAL: JWT_SECRET environment variable is not set.');
-}
-const JWT_SECRET = process.env.JWT_SECRET;
-
-// Limit to 5 attempts per 5 minutes per email address
-const loginRateLimiter = new RateLimiterMemory({
-  points: 5, // 5 attempts
-  duration: 300, // per 300 seconds (5 minutes)
-});
-
-router.post('/login', validateRequest(schemas.login), asyncHandler(async (req: express.Request, res: express.Response) => {
-  const { email, password } = req.body;
-
-  try {
-    // Consume 1 point for this email attempt
-    await loginRateLimiter.consume(email);
-  } catch (rateLimiterRes: any) {
-    const remainingMinutes = Math.ceil(rateLimiterRes.msBeforeNext / 60000);
-    return res.status(429).json({ 
-      error: `Account locked due to too many failed attempts. Try again in ${remainingMinutes} minute(s).` 
-    });
-  }
+auth.post('/login', validateRequest(schemas.login), async (c) => {
+  const { email, password } = await c.req.json();
+  const prisma = getPrisma(c.env.DATABASE_URL);
 
   const user = await prisma.user.findUnique({
     where: { email },
@@ -40,17 +19,14 @@ router.post('/login', validateRequest(schemas.login), asyncHandler(async (req: e
   });
 
   if (!user) {
-    return res.status(401).json({ error: 'Invalid credentials' });
+    return c.json({ error: 'Invalid credentials' }, 401);
   }
 
   const isValid = await bcrypt.compare(password, user.password);
   
   if (!isValid) {
-    return res.status(401).json({ error: 'Invalid credentials' });
+    return c.json({ error: 'Invalid credentials' }, 401);
   }
-
-  // Handle successful login: delete history points for this email
-  await loginRateLimiter.delete(email);
 
   const payload = {
     userId: user.id,
@@ -61,24 +37,25 @@ router.post('/login', validateRequest(schemas.login), asyncHandler(async (req: e
     mustChangePassword: user.mustChangePassword,
   };
 
-  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '8h' });
+  const secret = new TextEncoder().encode(c.env.JWT_SECRET);
+  const token = await new SignJWT(payload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('8h')
+    .sign(secret);
 
-  // Set JWT in Secure/HttpOnly Cookie
-  // In production: sameSite='none' + secure=true is required for cross-origin (Pages ↔ Railway)
-  // In development: sameSite='lax' works fine without HTTPS
-  const isProduction = process.env.NODE_ENV === 'production';
-  res.cookie('token', token, {
+  const isProduction = c.env.NODE_ENV === 'production';
+  setCookie(c, 'token', token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
-    maxAge: 8 * 60 * 60 * 1000, // 8 hours
+    sameSite: isProduction ? 'None' : 'Lax',
+    maxAge: 8 * 60 * 60, // 8 hours in seconds
+    path: '/',
   });
 
-  // Return user info (token is in the cookie, but also sent for frontend state management)
-  res.json({ success: true, user: payload, token });
-}));
+  return c.json({ success: true, user: payload, token });
+});
 
-// Change Password — AUTHENTICATED, derives userId from JWT
 const changePasswordSchema = z.object({
   body: z.object({
     currentPassword: z.string().min(1, 'Current password is required'),
@@ -86,31 +63,32 @@ const changePasswordSchema = z.object({
   })
 });
 
-router.post('/change-password', authenticateToken, validateRequest(changePasswordSchema), asyncHandler(async (req: AuthRequest, res: express.Response) => {
-  const userId = req.user.userId; // Derived from JWT — never trust client body
-  const { currentPassword, newPassword } = req.body;
+auth.post('/change-password', authenticateToken, validateRequest(changePasswordSchema), async (c) => {
+  const user = c.get('user');
+  const { currentPassword, newPassword } = await c.req.json();
+  const prisma = getPrisma(c.env.DATABASE_URL);
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) return res.status(404).json({ error: 'User not found' });
+  const dbUser = await prisma.user.findUnique({ where: { id: user.userId } });
+  if (!dbUser) return c.json({ error: 'User not found' }, 404);
 
-  const isValid = await bcrypt.compare(currentPassword, user.password);
-  if (!isValid) return res.status(401).json({ error: 'Incorrect current password' });
+  const isValid = await bcrypt.compare(currentPassword, dbUser.password);
+  if (!isValid) return c.json({ error: 'Incorrect current password' }, 401);
 
   const hashedNewPassword = await bcrypt.hash(newPassword, 12);
   await prisma.user.update({
-    where: { id: userId },
+    where: { id: user.userId },
     data: { 
       password: hashedNewPassword,
       mustChangePassword: false 
     }
   });
 
-  res.json({ success: true, message: 'Password updated successfully' });
-}));
-
-router.post('/logout', (req, res) => {
-  res.clearCookie('token');
-  res.json({ success: true, message: 'Logged out successfully' });
+  return c.json({ success: true, message: 'Password updated successfully' });
 });
 
-export default router;
+auth.post('/logout', (c) => {
+  deleteCookie(c, 'token', { path: '/' });
+  return c.json({ success: true, message: 'Logged out successfully' });
+});
+
+export default auth;
