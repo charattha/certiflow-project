@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { Users, RefreshCcw, Loader2, CheckCircle, AlertCircle, Search, ShieldCheck, UserCog, UserPlus, X, Trash2, Edit2 } from "lucide-react";
+import { Users, RefreshCcw, Loader2, CheckCircle, AlertCircle, ShieldCheck, UserCog, UserPlus, X, Trash2, Edit2 } from "lucide-react";
 import BulkUpload from "../components/BulkUpload";
 
 export default function AdminManagement() {

@@ -129,11 +129,6 @@ const TEMPLATE_FIELDS: Record<string, FieldDef[]> = {
 };
 
 // ─────────────────────────────────────────────
-// Auto-filled field badges (shown for info)
-// ─────────────────────────────────────────────
-const AUTO_FILL_LABELS = ["Date", "First Name", "Last Name", "Position", "Department"];
-
-// ─────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────
 export default function EmployeeDashboard() {
