@@ -1,4 +1,4 @@
-import { getPrisma } from './prisma';
+import { getSupabase } from './supabase';
 
 export const SystemLogger = {
   async logAction(
@@ -10,15 +10,13 @@ export const SystemLogger = {
     env: any
   ) {
     try {
-      const prisma = getPrisma(env.DATABASE_URL);
-      await prisma.systemAuditLog.create({
-        data: {
-          actorId,
-          actorRole,
-          action,
-          targetId,
-          details,
-        },
+      const supabase = getSupabase(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+      await supabase.from('SystemAuditLog').insert({
+        actorId,
+        actorRole,
+        action,
+        targetId,
+        details,
       });
       console.log(`[AUDIT] User ${actorId} (${actorRole}) performed ${action}`);
     } catch (error) {

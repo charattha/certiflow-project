@@ -2,100 +2,107 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { authenticateToken } from '../middleware/auth';
 import { triggerDocumentGeneration } from '../services/document';
-import { TEMPLATE_FIELD_DEFINITIONS } from '../utils/templateFields';
-import { getPrisma } from '../utils/prisma';
+import { getSupabase } from '../utils/supabase';
+import type { AppEnv } from '../types/env';
 
-const employee = new Hono();
+const employee = new Hono<AppEnv>();
 
 employee.use('*', authenticateToken);
 
 employee.get('/requests', async (c) => {
   const user = c.get('user');
   const employeeId = user.employeeId;
-  if (!employeeId) {
-    return c.json({ error: 'User is not linked to an employee profile' }, 403);
-  }
+  if (!employeeId) return c.json({ error: 'User is not linked to an employee profile' }, 403);
 
-  const prisma = getPrisma(c.env.DATABASE_URL);
-  const requests = await prisma.documentRequest.findMany({
-    where: { employeeId },
-    orderBy: { createdAt: 'desc' },
-  });
-  
-  return c.json(requests);
-});
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+  const { data, error } = await supabase
+    .from('DocumentRequest')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .order('created_at', { ascending: false });
 
-employee.get('/template-fields/:docType', async (c) => {
-  const docType = c.req.param('docType');
-  const fields = TEMPLATE_FIELD_DEFINITIONS[docType];
-  if (fields === undefined) {
-    return c.json({ error: 'Unknown document type' }, 404);
-  }
-  return c.json(fields);
+  if (error) return c.json({ error: error.message }, 500);
+  return c.json(data);
 });
 
 const documentRequestSchema = z.object({
-  docType: z.enum(['salary_cert', 'payslip_copy', 'tax_50', 'emp_cert', 'visa_letter']),
-  docLang: z.enum(['TH', 'EN']),
+  doc_type: z.enum(['salary_cert', 'emp_cert', 'visa_letter', 'payslip_copy', 'tax_50']),
+  doc_lang: z.enum(['TH', 'EN']),
   reason: z.enum(['financial', 'visa', 'education', 'other']),
-  templateFields: z.record(z.string(), z.string()).optional(),
+  // Visa-only fields
+  country_prefer_travel: z.string().optional(),
+  departure_date: z.string().optional(),
+  last_travel_date: z.string().optional(),
+  arrival_date: z.string().optional(),
+  on_duty_date: z.string().optional(),
 });
 
 employee.post('/requests', async (c) => {
   const user = c.get('user');
   const employeeId = user.employeeId;
-  if (!employeeId) {
-    return c.json({ error: 'User is not linked to an employee profile' }, 403);
-  }
+  if (!employeeId) return c.json({ error: 'User is not linked to an employee profile' }, 403);
 
   const body = await c.req.json();
   const result = documentRequestSchema.safeParse(body);
-  if (!result.success) {
-    return c.json({ error: 'Invalid request data', details: result.error.format() }, 400);
-  }
-  const { docType, docLang, reason, templateFields } = result.data;
+  if (!result.success) return c.json({ error: 'Invalid request data', details: result.error.format() }, 400);
 
-  const fieldDefs = TEMPLATE_FIELD_DEFINITIONS[docType] || [];
-  const requiredUserFields = fieldDefs.filter((f) => !f.autoFilled && f.required);
-  const missingFields = requiredUserFields.filter((f) => !templateFields?.[f.key]);
-  if (missingFields.length > 0) {
-    return c.json({
-      error: 'Missing required template fields',
-      missingFields: missingFields.map((f) => ({ key: f.key, label: f.label })),
-    }, 400);
-  }
-  
-  const prisma = getPrisma(c.env.DATABASE_URL);
-  const count = await prisma.documentRequest.count();
-  const requestId = `REQ-${(count + 1).toString().padStart(3, '0')}`;
+  const { doc_type, doc_lang, reason, country_prefer_travel, departure_date, last_travel_date, arrival_date, on_duty_date } = result.data;
 
-  const newRequest = await prisma.documentRequest.create({
-    data: {
-      requestId,
-      docType,
-      docLang,
+  if (doc_type === 'visa_letter') {
+    if (!country_prefer_travel || !departure_date || !last_travel_date || !arrival_date || !on_duty_date) {
+      return c.json({ error: 'Visa letter requires: country_prefer_travel, departure_date, last_travel_date, arrival_date, on_duty_date' }, 400);
+    }
+  }
+
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const { count } = await supabase
+    .from('DocumentRequest')
+    .select('*', { count: 'exact', head: true });
+
+  const request_id = `REQ-${((count ?? 0) + 1).toString().padStart(3, '0')}`;
+
+  const { data: newRequest, error } = await supabase
+    .from('DocumentRequest')
+    .insert({
+      request_id,
+      doc_type,
+      doc_lang,
       reason,
-      employeeId,
-      templateFields: templateFields || {},
-    },
-  });
+      employee_id: employeeId,
+      country_prefer_travel: country_prefer_travel ?? null,
+      departure_date: departure_date ?? null,
+      last_travel_date: last_travel_date ?? null,
+      arrival_date: arrival_date ?? null,
+      on_duty_date: on_duty_date ?? null,
+    })
+    .select()
+    .single();
 
-  // Cloudflare Workers use c.executionCtx.waitUntil for background tasks
+  if (error) return c.json({ error: error.message }, 500);
+
   c.executionCtx.waitUntil(triggerDocumentGeneration(newRequest.id, c.env));
 
   return c.json(newRequest, 201);
 });
 
-// Download route might need adjustment depending on where we store generated files (e.g. Supabase Storage)
-employee.get('/downloads/:filename', async (c) => {
-  const filename = c.req.param('filename');
-  if (!/^[A-Za-z0-9\-]+\.docx$/.test(filename)) {
-    return c.json({ error: 'Invalid filename' }, 400);
-  }
+employee.get('/downloads/:requestId', async (c) => {
+  const requestId = c.req.param('requestId');
+  const user = c.get('user');
+  const employeeId = user.employeeId;
 
-  // In a Worker environment, we would fetch from R2 or Supabase Storage
-  // For now, returning a 404 until Storage is implemented
-  return c.json({ error: 'File storage migration in progress' }, 404);
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+  const { data: request } = await supabase
+    .from('DocumentRequest')
+    .select('file_url, employee_id, status')
+    .eq('id', requestId)
+    .maybeSingle();
+
+  if (!request) return c.json({ error: 'Request not found' }, 404);
+  if (request.employee_id !== employeeId) return c.json({ error: 'Forbidden' }, 403);
+  if (request.status !== 'COMPLETED' || !request.file_url) return c.json({ error: 'Document not ready' }, 404);
+
+  return c.json({ url: request.file_url });
 });
 
 export default employee;

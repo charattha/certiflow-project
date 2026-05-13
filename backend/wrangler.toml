@@ -6,5 +6,7 @@ compatibility_flags = [ "nodejs_compat" ]
 [vars]
 NODE_ENV = "production"
 
-# Note: DATABASE_URL and JWT_SECRET should be set via 'wrangler secret put' 
-# or in the Cloudflare Dashboard for production.
+[[rules]]
+type = "Data"
+globs = ["**/*.docx"]
+fallthrough = true

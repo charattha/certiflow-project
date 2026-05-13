@@ -1,70 +1,190 @@
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
-import { getPrisma } from '../utils/prisma';
-import { mergeTemplateFields } from '../utils/templateFields';
+import { getSupabase } from '../utils/supabase';
 
-/**
- * Cloudflare Worker version of document generation.
- * In a real production environment, this would:
- * 1. Fetch the .docx template from Supabase Storage or R2.
- * 2. Fill it using Docxtemplater.
- * 3. Upload the result back to Supabase Storage or R2.
- * 4. Return the public URL.
- */
+import salaryTemplate from '../templates/salary_cert.docx';
+import empCertTemplate from '../templates/emp_cert.docx';
+import visaTemplate from '../templates/visa_letter.docx';
 
-export const generateDocument = async (requestId: string, env: any) => {
-  const prisma = getPrisma(env.DATABASE_URL);
+const TEMPLATES: Record<string, ArrayBuffer> = {
+  salary_cert: salaryTemplate,
+  emp_cert: empCertTemplate,
+  visa_letter: visaTemplate,
+};
 
-  const docRequest = await prisma.documentRequest.findUnique({
-    where: { id: requestId },
-    include: {
-      employee: true,
-    },
+function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
+}
+
+// Custom parser: normalizes keys like "date_now / mmmm-dd-yyyy" → "date_now"
+// and "employment date/..." → "employment_date", fixes "daparture" typo
+function makeParser(data: Record<string, string>) {
+  return function (tag: string) {
+    const normalized = tag
+      .split('/')[0]
+      .trim()
+      .replace(/\s+/g, '_')
+      .replace(/daparture/g, 'departure')
+      .toLowerCase();
+
+    return {
+      get(_scope: any) {
+        return data[normalized] ?? data[tag] ?? '';
+      },
+    };
+  };
+}
+
+function fillTemplate(template: ArrayBuffer, data: Record<string, string>): Buffer {
+  const zip = new PizZip(template);
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    parser: makeParser(data),
   });
+  doc.render();
+  return doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
+}
 
-  if (!docRequest) {
-    throw new Error(`DocumentRequest not found: ${requestId}`);
+async function buildSalaryCertData(employee: any, serviceCharge: any): Promise<Record<string, string>> {
+  const prefix = employee.prefix?.replace('_', '.') ?? '';
+  return {
+    date_now: formatDate(new Date()),
+    prefix,
+    first_name: employee.first_name ?? '',
+    last_name: employee.last_name ?? '',
+    employment_date: formatDate(employee.employment_date),
+    position: employee.position ?? '',
+    department: employee.department ?? '',
+    salary: employee.salary ? Number(employee.salary).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
+    svc_monthly: serviceCharge ? Number(serviceCharge.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
+    total_svc: (Number(employee.salary ?? 0) + Number(serviceCharge?.amount ?? 0)).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+  };
+}
+
+async function buildEmpCertData(employee: any): Promise<Record<string, string>> {
+  const prefix = employee.prefix?.replace('_', '.') ?? '';
+  return {
+    date_now: formatDate(new Date()),
+    prefix,
+    first_name: employee.first_name ?? '',
+    last_name: employee.last_name ?? '',
+    employment_date: formatDate(employee.employment_date),
+    last_working_date: formatDate(employee.resignation_date),
+    position: employee.position ?? '',
+    department: employee.department ?? '',
+  };
+}
+
+async function buildVisaData(employee: any, serviceCharge: any, request: any): Promise<Record<string, string>> {
+  const prefix = employee.prefix?.replace('_', '.') ?? '';
+  return {
+    date_now: formatDate(request.created_at),
+    prefix,
+    first_name: employee.first_name ?? '',
+    last_name: employee.last_name ?? '',
+    position: employee.position ?? '',
+    department: employee.department ?? '',
+    salary: employee.salary ? Number(employee.salary).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
+    svc_monthly: serviceCharge ? Number(serviceCharge.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
+    total_svc: (Number(employee.salary ?? 0) + Number(serviceCharge?.amount ?? 0)).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+    country: request.country_prefer_travel ?? '',
+    departure_date: formatDate(request.departure_date),
+    last_travel_date: formatDate(request.last_travel_date),
+    arrival_date: formatDate(request.arrival_date),
+    first_date_on_duty_date: formatDate(request.on_duty_date),
+  };
+}
+
+export async function generateDocument(requestId: string, env: any): Promise<void> {
+  const supabase = getSupabase(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const { data: request, error: reqError } = await supabase
+    .from('DocumentRequest')
+    .select('*, Employee(*)')
+    .eq('id', requestId)
+    .maybeSingle();
+
+  if (reqError || !request) throw new Error(`Request not found: ${requestId}`);
+
+  const employee = Array.isArray(request.Employee) ? request.Employee[0] : request.Employee;
+  if (!employee) throw new Error(`Employee not found for request: ${requestId}`);
+
+  const template = TEMPLATES[request.doc_type];
+  if (!template) {
+    await supabase.from('DocumentRequest')
+      .update({ status: 'COMPLETED', updatedAt: new Date().toISOString() })
+      .eq('id', requestId);
+    return;
   }
 
-  // 3-day file expiration logic
+  // Fetch service charge for current month if needed
+  let serviceCharge = null;
+  if (request.doc_type === 'salary_cert' || request.doc_type === 'visa_letter') {
+    const now = new Date();
+    const { data: sc } = await supabase
+      .from('ServiceCharge')
+      .select('*')
+      .eq('employee_id', employee.id)
+      .eq('month', now.getMonth() + 1)
+      .eq('year', now.getFullYear())
+      .maybeSingle();
+    serviceCharge = sc;
+  }
+
+  // Build template data
+  let data: Record<string, string>;
+  if (request.doc_type === 'salary_cert') {
+    data = await buildSalaryCertData(employee, serviceCharge);
+  } else if (request.doc_type === 'emp_cert') {
+    data = await buildEmpCertData(employee);
+  } else if (request.doc_type === 'visa_letter') {
+    data = await buildVisaData(employee, serviceCharge, request);
+  } else {
+    throw new Error(`No template for doc_type: ${request.doc_type}`);
+  }
+
+  // Generate document
+  const docBuffer = fillTemplate(template, data);
+  const fileName = `${requestId}.docx`;
+
+  // Ensure bucket exists and upload
+  await supabase.storage.createBucket('documents', { public: false }).catch(() => {});
+  const { error: uploadError } = await supabase.storage
+    .from('documents')
+    .upload(fileName, docBuffer, {
+      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      upsert: true,
+    });
+
+  if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+
+  // Create signed URL valid for 3 days
+  const { data: signedData } = await supabase.storage
+    .from('documents')
+    .createSignedUrl(fileName, 60 * 60 * 24 * 3);
+
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 3);
 
-  // For now, we simulate success without physical file generation 
-  // until Supabase Storage buckets are configured by the user.
-  const updated = await prisma.documentRequest.update({
-    where: { id: requestId },
-    data: {
-      status: 'COMPLETED',
-      fileUrl: `https://placeholder-url.com/${docRequest.requestId}.docx`,
-      expiresAt,
-    },
-  });
+  await supabase.from('DocumentRequest').update({
+    status: 'COMPLETED',
+    file_url: signedData?.signedUrl ?? null,
+    expires_at: expiresAt.toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq('id', requestId);
+}
 
-  return updated;
-};
-
-const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
-
-export const triggerDocumentGeneration = async (requestId: string, env: any) => {
-  const maxRetries = 2;
-  let attempt = 0;
-
-  while (attempt < maxRetries) {
-    try {
-      await generateDocument(requestId, env);
-      return;
-    } catch (err) {
-      attempt++;
-      if (attempt >= maxRetries) {
-        const prisma = getPrisma(env.DATABASE_URL);
-        await prisma.documentRequest.update({
-          where: { id: requestId },
-          data: { status: 'REJECTED' },
-        }).catch(() => {});
-        break;
-      }
-      await delay(2000);
-    }
+export async function triggerDocumentGeneration(requestId: string, env: any): Promise<void> {
+  const supabase = getSupabase(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  try {
+    await generateDocument(requestId, env);
+  } catch (err) {
+    console.error('[DocGen] Failed:', err);
+    await supabase.from('DocumentRequest')
+      .update({ status: 'REJECTED', updated_at: new Date().toISOString() })
+      .eq('id', requestId);
   }
-};
+}

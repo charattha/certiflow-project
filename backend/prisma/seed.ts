@@ -1,53 +1,52 @@
-import { PrismaClient, Role } from '@prisma/client';
-import crypto from 'crypto';
+import { PrismaClient } from '@prisma/client';
+import { createHash } from 'crypto';
 
 const prisma = new PrismaClient();
 
 function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password).digest('hex');
+  return createHash('sha256').update(password).digest('hex');
 }
 
 async function main() {
-  console.log(`Start seeding ...`);
+  console.log('Start seeding ...');
 
-  // SHA-256 hash for 'admin123'
   const hashedPassword = hashPassword('admin123');
 
-  // Super Admin
   const superAdmin = await prisma.user.upsert({
     where: { email: 'super@certipaws.com' },
     update: { password: hashedPassword },
     create: {
       email: 'super@certipaws.com',
       password: hashedPassword,
-      role: Role.SUPER_ADMIN,
+      role: 'SUPER_ADMIN',
+      must_change_password: false,
     },
   });
 
-  // General Admin
   const genAdmin = await prisma.user.upsert({
     where: { email: 'admin@certipaws.com' },
     update: { password: hashedPassword },
     create: {
       email: 'admin@certipaws.com',
       password: hashedPassword,
-      role: Role.GENERAL_ADMIN,
+      role: 'GENERAL_ADMIN',
+      must_change_password: false,
     },
   });
 
-  // Regular Employee (Somchai Jaidee)
   const employeeUser = await prisma.user.upsert({
     where: { email: 'somchai@certipaws.com' },
     update: { password: hashedPassword },
     create: {
       email: 'somchai@certipaws.com',
       password: hashedPassword,
-      role: Role.EMPLOYEE,
+      role: 'EMPLOYEE',
+      must_change_password: false,
       employee: {
         create: {
-          employeeId: 'EMP-10293',
-          firstName: 'Somchai',
-          lastName: 'Jaidee',
+          employee_id: 'EMP-10293',
+          first_name: 'Somchai',
+          last_name: 'Jaidee',
           department: 'Engineering',
           position: 'Software Developer',
         },
@@ -56,13 +55,11 @@ async function main() {
   });
 
   console.log({ superAdmin, genAdmin, employeeUser });
-  console.log(`Seeding finished.`);
+  console.log('Seeding finished.');
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
+  .then(() => prisma.$disconnect())
   .catch(async (e) => {
     console.error(e);
     await prisma.$disconnect();

@@ -11,7 +11,8 @@ import { errorHandler } from './middleware/errorHandler';
 
 const app = new Hono<{
   Bindings: {
-    DATABASE_URL: string;
+    SUPABASE_URL: string;
+    SUPABASE_SERVICE_ROLE_KEY: string;
     JWT_SECRET: string;
     FRONTEND_URL: string;
     NODE_ENV: string;
@@ -43,12 +44,13 @@ app.route('/api/admin', adminRoutes);
 
 // Health check
 app.get('/health', (c) => {
-  return c.json({ 
-    status: 'ok', 
-    service: 'certiflow-worker', 
-    timestamp: new Date().toISOString() 
+  return c.json({
+    status: 'ok',
+    service: 'certiflow-worker',
+    timestamp: new Date().toISOString()
   });
 });
+
 
 // Error Handling
 app.onError(errorHandler);
