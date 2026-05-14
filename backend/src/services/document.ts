@@ -48,14 +48,18 @@ function fillTemplate(template: ArrayBuffer, data: Record<string, string>): Buff
   return doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
-async function buildSalaryCertData(employee: any, serviceCharge: any): Promise<Record<string, string>> {
-  const prefix = employee.prefix?.replace('_', '.') ?? '';
+function resolvePrefix(employee: any, tf: Record<string, string> | null): string {
+  if (tf?.prefix) return tf.prefix;
+  return employee.prefix?.replace('_', '.') ?? '';
+}
+
+async function buildSalaryCertData(employee: any, serviceCharge: any, tf: Record<string, string> | null): Promise<Record<string, string>> {
   return {
     date_now: formatDate(new Date()),
-    prefix,
+    prefix: resolvePrefix(employee, tf),
     first_name: employee.first_name ?? '',
     last_name: employee.last_name ?? '',
-    employment_date: formatDate(employee.employment_date),
+    employment_date: tf?.employment_date ? formatDate(new Date(tf.employment_date)) : formatDate(employee.employment_date),
     position: employee.position ?? '',
     department: employee.department ?? '',
     salary: employee.salary ? Number(employee.salary).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
@@ -64,15 +68,14 @@ async function buildSalaryCertData(employee: any, serviceCharge: any): Promise<R
   };
 }
 
-async function buildEmpCertData(employee: any): Promise<Record<string, string>> {
-  const prefix = employee.prefix?.replace('_', '.') ?? '';
+async function buildEmpCertData(employee: any, tf: Record<string, string> | null): Promise<Record<string, string>> {
   return {
     date_now: formatDate(new Date()),
-    prefix,
+    prefix: resolvePrefix(employee, tf),
     first_name: employee.first_name ?? '',
     last_name: employee.last_name ?? '',
-    employment_date: formatDate(employee.employment_date),
-    last_working_date: formatDate(employee.resignation_date),
+    employment_date: tf?.employment_date ? formatDate(new Date(tf.employment_date)) : formatDate(employee.employment_date),
+    last_working_date: tf?.last_working_date ? formatDate(new Date(tf.last_working_date)) : formatDate(employee.resignation_date),
     position: employee.position ?? '',
     department: employee.department ?? '',
   };
@@ -135,11 +138,12 @@ export async function generateDocument(requestId: string, env: any): Promise<voi
   }
 
   // Build template data
+  const tf = (request.template_fields as Record<string, string> | null) ?? null;
   let data: Record<string, string>;
   if (request.doc_type === 'salary_cert') {
-    data = await buildSalaryCertData(employee, serviceCharge);
+    data = await buildSalaryCertData(employee, serviceCharge, tf);
   } else if (request.doc_type === 'emp_cert') {
-    data = await buildEmpCertData(employee);
+    data = await buildEmpCertData(employee, tf);
   } else if (request.doc_type === 'visa_letter') {
     data = await buildVisaData(employee, serviceCharge, request);
   } else {

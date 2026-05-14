@@ -60,6 +60,44 @@ const documentCategories = [
   { title: { TH: "หมวดการจ้างงาน",    EN: "Employment" },     docIds: ["emp_cert", "visa_letter"] },
 ];
 
+// ─────────────────────────────────────────────
+// Template Fields (user-input, per doc type)
+// ─────────────────────────────────────────────
+interface FieldDef {
+  key: string;
+  label: string;
+  labelTH: string;
+  type: 'text' | 'date' | 'select' | 'number';
+  required: boolean;
+  options?: { value: string; label: string }[];
+}
+
+const PREFIX_FIELD: FieldDef = {
+  key: 'prefix',
+  label: 'Title / Prefix',
+  labelTH: 'คำนำหน้า',
+  type: 'select',
+  required: true,
+  options: [
+    { value: 'Mr.', label: 'Mr.' },
+    { value: 'Ms.', label: 'Ms.' },
+    { value: 'Mrs.', label: 'Mrs.' },
+  ],
+};
+
+const TEMPLATE_FIELDS: Record<string, FieldDef[]> = {
+  salary_cert: [
+    PREFIX_FIELD,
+    { key: 'employment_date', label: 'Employment Start Date', labelTH: 'วันที่เริ่มงาน', type: 'date', required: true },
+  ],
+  emp_cert: [
+    PREFIX_FIELD,
+    { key: 'employment_date', label: 'Employment Start Date', labelTH: 'วันที่เริ่มงาน', type: 'date', required: true },
+    { key: 'last_working_date', label: 'Last Working Date', labelTH: 'วันสิ้นสุดการทำงาน', type: 'date', required: true },
+  ],
+  visa_letter: [], payslip_copy: [], tax_50: [],
+};
+
 interface VisaFields {
   country_prefer_travel: string;
   departure_date: string;
@@ -79,6 +117,7 @@ export default function EmployeeDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reasonId, setReasonId] = useState("financial");
   const [docLanguage, setDocLanguage] = useState("TH");
+  const [templateFields, setTemplateFields] = useState<Record<string, string>>({});
   const [visaFields, setVisaFields] = useState<VisaFields>({
     country_prefer_travel: '',
     departure_date: '',
@@ -89,9 +128,13 @@ export default function EmployeeDashboard() {
 
   const text = t[appLang as 'TH' | 'EN'];
   const isVisa = selectedDocId === 'visa_letter';
+  const activeFields = selectedDocId ? (TEMPLATE_FIELDS[selectedDocId] ?? []) : [];
 
   useEffect(() => { fetchRequests(); }, [token]);
-  useEffect(() => { setVisaFields({ country_prefer_travel: '', departure_date: '', last_travel_date: '', arrival_date: '', on_duty_date: '' }); }, [selectedDocId]);
+  useEffect(() => {
+    setVisaFields({ country_prefer_travel: '', departure_date: '', last_travel_date: '', arrival_date: '', on_duty_date: '' });
+    setTemplateFields({});
+  }, [selectedDocId]);
 
   const fetchRequests = async () => {
     try {
@@ -112,6 +155,7 @@ export default function EmployeeDashboard() {
         doc_type: selectedDocId,
         doc_lang: docLanguage,
         reason: reasonId,
+        ...(activeFields.length > 0 ? { template_fields: templateFields } : {}),
         ...(isVisa ? visaFields : {}),
       }, { headers: { Authorization: `Bearer ${token}` } });
       fetchRequests();
@@ -164,7 +208,9 @@ export default function EmployeeDashboard() {
                       <div className="flex-1">
                         <h3 className="font-medium text-white">{doc.name[appLang as 'TH' | 'EN']}</h3>
                         <p className="text-xs text-stone-500 mt-1">
-                          {docId === 'visa_letter' ? 'Requires travel details' : 'Auto-filled from profile'}
+                          {(TEMPLATE_FIELDS[docId]?.length ?? 0) > 0
+                            ? `${TEMPLATE_FIELDS[docId].length} field${TEMPLATE_FIELDS[docId].length > 1 ? 's' : ''} required`
+                            : docId === 'visa_letter' ? 'Requires travel details' : 'Auto-filled from profile'}
                         </p>
                       </div>
                     </div>
@@ -301,6 +347,51 @@ export default function EmployeeDashboard() {
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
                   </div>
                 </div>
+
+                {/* Template fields (prefix, employment dates) */}
+                {activeFields.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-px flex-1 bg-white/10" />
+                      <span className="text-xs font-medium text-stone-400 uppercase tracking-widest">
+                        {appLang === 'TH' ? 'ข้อมูลสำหรับเอกสาร' : 'Document Information'}
+                      </span>
+                      <div className="h-px flex-1 bg-white/10" />
+                    </div>
+                    {activeFields.map((field) => (
+                      <div key={field.key}>
+                        <label className="block text-sm font-medium text-stone-300 mb-1.5">
+                          {appLang === 'TH' ? field.labelTH : field.label}
+                          {field.required && <span className="text-brand-red ml-1">*</span>}
+                        </label>
+                        {field.type === 'select' ? (
+                          <div className="relative">
+                            <select
+                              value={templateFields[field.key] || ''}
+                              onChange={(e) => setTemplateFields(prev => ({ ...prev, [field.key]: e.target.value }))}
+                              required={field.required}
+                              className="w-full border border-white/10 rounded-lg px-4 py-3 font-medium text-white focus:outline-none focus:ring-2 focus:ring-brand-red appearance-none bg-black/20"
+                            >
+                              <option value="" disabled>Select…</option>
+                              {field.options?.map((opt) => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                          </div>
+                        ) : (
+                          <input
+                            type={field.type}
+                            value={templateFields[field.key] || ''}
+                            onChange={(e) => setTemplateFields(prev => ({ ...prev, [field.key]: e.target.value }))}
+                            required={field.required}
+                            className="w-full border border-white/10 rounded-lg px-4 py-3 font-medium text-white focus:outline-none focus:ring-2 focus:ring-brand-red bg-black/20 [color-scheme:dark]"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Visa-only fields */}
                 {isVisa && (

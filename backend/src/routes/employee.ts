@@ -29,6 +29,8 @@ const documentRequestSchema = z.object({
   doc_type: z.enum(['salary_cert', 'emp_cert', 'visa_letter', 'payslip_copy', 'tax_50']),
   doc_lang: z.enum(['TH', 'EN']),
   reason: z.enum(['financial', 'visa', 'education', 'other']),
+  // User-supplied template overrides (prefix, employment_date, last_working_date)
+  template_fields: z.record(z.string()).optional(),
   // Visa-only fields
   country_prefer_travel: z.string().optional(),
   departure_date: z.string().optional(),
@@ -46,7 +48,7 @@ employee.post('/requests', async (c) => {
   const result = documentRequestSchema.safeParse(body);
   if (!result.success) return c.json({ error: 'Invalid request data', details: result.error.format() }, 400);
 
-  const { doc_type, doc_lang, reason, country_prefer_travel, departure_date, last_travel_date, arrival_date, on_duty_date } = result.data;
+  const { doc_type, doc_lang, reason, template_fields, country_prefer_travel, departure_date, last_travel_date, arrival_date, on_duty_date } = result.data;
 
   if (doc_type === 'visa_letter') {
     if (!country_prefer_travel || !departure_date || !last_travel_date || !arrival_date || !on_duty_date) {
@@ -70,6 +72,7 @@ employee.post('/requests', async (c) => {
       doc_lang,
       reason,
       employee_id: employeeId,
+      template_fields: template_fields ?? null,
       country_prefer_travel: country_prefer_travel ?? null,
       departure_date: departure_date ?? null,
       last_travel_date: last_travel_date ?? null,
