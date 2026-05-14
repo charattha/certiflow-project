@@ -178,20 +178,22 @@ export default function RootLayout() {
             Menu
           </div>
           
-          <button 
-            onClick={() => {
-              navigate('/dashboard');
-              setMobileMenuOpen(false);
-            }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-              window.location.pathname === '/dashboard' 
-                ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]' 
-                : 'text-stone-400 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            <LayoutDashboard className="h-5 w-5" />
-            {isAdmin ? 'Requests Overview' : 'My Documents'}
-          </button>
+          {!isAdmin && (
+            <button
+              onClick={() => {
+                navigate('/dashboard');
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
+                window.location.pathname === '/dashboard'
+                  ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]'
+                  : 'text-stone-400 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              <LayoutDashboard className="h-5 w-5" />
+              My Documents
+            </button>
+          )}
 
           {isAdmin && (
             <button 

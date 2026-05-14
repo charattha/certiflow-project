@@ -125,7 +125,7 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => handleTrigger(req.id)}
-                          disabled={triggeringId === req.id || req.status === 'COMPLETED'}
+                          disabled={triggeringId === req.id}
                           className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg font-medium shadow-sm hover:bg-white/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-white/5 active:scale-[0.98]"
                         >
                           {triggeringId === req.id ? (
