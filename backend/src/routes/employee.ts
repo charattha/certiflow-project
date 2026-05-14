@@ -82,7 +82,10 @@ employee.post('/requests', async (c) => {
     .select()
     .single();
 
-  if (error) return c.json({ error: error.message }, 500);
+  if (error) {
+    console.error('[POST /requests] Insert error:', JSON.stringify(error));
+    return c.json({ error: error.message }, 500);
+  }
 
   c.executionCtx.waitUntil(triggerDocumentGeneration(newRequest.id, c.env));
 
