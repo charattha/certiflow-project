@@ -242,12 +242,12 @@ export default function AdminManagement() {
                 </div>
               </div>
 
-              {/* Name row: Prefix | First Name | Last Name | Gender */}
-              <div className="grid grid-cols-4 gap-4 pt-4 border-t border-white/5">
+              {/* Prefix | Gender */}
+              <div className="grid grid-cols-2 gap-5 pt-4 border-t border-white/5">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Prefix</label>
                   <select value={formData.prefix} onChange={(e) => setFormData({...formData, prefix: e.target.value})}
-                    className="w-full bg-[#1c1c1c] border border-white/10 rounded-lg px-3 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
+                    className="w-full bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
                     <option value="">—</option>
                     <option value="Mr.">Mr.</option>
                     <option value="Ms.">Ms.</option>
@@ -255,23 +255,27 @@ export default function AdminManagement() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">First Name</label>
-                  <input type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="John" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Last Name</label>
-                  <input type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="Doe" />
-                </div>
-                <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Gender</label>
                   <select value={formData.gender} onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                    className="w-full bg-[#1c1c1c] border border-white/10 rounded-lg px-3 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
+                    className="w-full bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
                     <option value="">—</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>
+                </div>
+              </div>
+
+              {/* First Name | Last Name */}
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">First Name</label>
+                  <input type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="John" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Last Name</label>
+                  <input type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="Doe" />
                 </div>
               </div>
 
