@@ -47,6 +47,7 @@ auth.post('/login', validateRequest(schemas.login), async (c) => {
         .eq('user_id', user.id)
         .maybeSingle();
       employee = empData;
+      console.log('[Login] employee lookup for user', user.id, ':', employee ? `found id=${employee.id}` : 'null');
     }
   } catch (err) {
     console.error('[Login] Database error:', err);

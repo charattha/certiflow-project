@@ -12,6 +12,7 @@ employee.use('*', authenticateToken);
 employee.get('/requests', async (c) => {
   const user = c.get('user');
   const employeeId = user.employeeId;
+  console.log('[GET /requests] user payload:', JSON.stringify(user));
   if (!employeeId) return c.json({ error: 'User is not linked to an employee profile' }, 403);
 
   const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
