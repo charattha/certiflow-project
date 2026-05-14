@@ -21,22 +21,32 @@ export default function BulkUpload({ onUploadComplete }: { onUploadComplete?: ()
     if (lines.length < 2) return [];
 
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-    const data = lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim());
+    const ALIAS: Record<string, string> = {
+      employeeid: 'emp_id', employee_id: 'emp_id',
+      firstname: 'first_name', lastname: 'last_name',
+      thaiid: 'thai_id', passportno: 'passport_no', passport_number: 'passport_no',
+      employmentdate: 'employment_date', start_date: 'employment_date', hire_date: 'employment_date',
+      resignationdate: 'resignation_date', end_date: 'resignation_date',
+    };
+
+    return lines.slice(1).map(line => {
+      // Handle quoted fields (values containing commas)
+      const values: string[] = [];
+      let cur = '', inQ = false;
+      for (const ch of line) {
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === ',' && !inQ) { values.push(cur.trim()); cur = ''; }
+        else cur += ch;
+      }
+      values.push(cur.trim());
+
       const obj: any = {};
-      headers.forEach((header, index) => {
-        // Map common CSV headers to backend expected keys
-        let key = header;
-        if (header === 'emp_id' || header === 'employeeid') key = 'emp_id';
-        if (header === 'first_name' || header === 'firstname') key = 'first_name';
-        if (header === 'last_name' || header === 'lastname') key = 'last_name';
-        if (header === 'thai_id' || header === 'thaiid') key = 'thai_id';
-        
-        obj[key] = values[index];
+      headers.forEach((header, i) => {
+        const key = ALIAS[header] ?? header;
+        obj[key] = values[i] ?? '';
       });
       return obj;
     });
-    return data;
   };
 
   const handleUpload = async () => {
@@ -57,7 +67,10 @@ export default function BulkUpload({ onUploadComplete }: { onUploadComplete?: ()
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setStatus({ type: 'success', message: response.data.message });
+      const { message, results } = response.data;
+      const failures = results?.filter((r: any) => r.status === 'error') ?? [];
+      const detail = failures.length > 0 ? ` (${failures.map((r: any) => `${r.email}: ${r.error}`).join('; ')})` : '';
+      setStatus({ type: 'success', message: message + detail });
       setFile(null);
       if (onUploadComplete) onUploadComplete();
     } catch (error: any) {
@@ -79,7 +92,14 @@ export default function BulkUpload({ onUploadComplete }: { onUploadComplete?: ()
       </div>
       
       <p className="text-stone-400 text-sm">
-        Upload a CSV file with headers: <code className="text-brand-red">emp_id, first_name, last_name, email, thai_id, department, position</code>
+        Upload a CSV file with headers:
+      <br />
+      <code className="text-brand-red text-xs leading-relaxed">
+        emp_id, email, first_name, last_name, prefix, gender, thai_id, passport_no,
+        department, position, salary, employment_date, resignation_date
+      </code>
+      <br />
+      <span className="text-stone-500 text-xs">prefix: Mr. / Ms. / Mrs. &nbsp;|&nbsp; gender: Male / Female &nbsp;|&nbsp; dates: YYYY-MM-DD</span>
       </p>
 
       <div className="relative border-2 border-dashed border-white/10 rounded-lg p-8 flex flex-col items-center justify-center hover:border-brand-red/50 transition-colors group cursor-pointer">

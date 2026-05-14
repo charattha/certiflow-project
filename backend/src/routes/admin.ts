@@ -297,4 +297,97 @@ admin.delete('/users/:id', requireRole(['SUPER_ADMIN']), async (c) => {
   return c.json({ message: 'User deleted successfully from database' });
 });
 
+function normalizePrefix(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const v = raw.trim().toLowerCase().replace(/\./g, '');
+  if (v === 'mr') return 'Mr.';
+  if (v === 'ms') return 'Ms.';
+  if (v === 'mrs') return 'Mrs.';
+  return null;
+}
+
+function normalizeGender(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const v = raw.trim().toLowerCase();
+  if (v === 'male' || v === 'm') return 'Male';
+  if (v === 'female' || v === 'f') return 'Female';
+  return null;
+}
+
+function parseDate(raw: string | undefined): string | null {
+  if (!raw || raw.trim() === '') return null;
+  const d = new Date(raw.trim());
+  return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+admin.post('/employees/bulk', async (c) => {
+  const user = c.get('user');
+  const requestorId = user.userId;
+  const requestorRole = user.role;
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const rows: any[] = await c.req.json();
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return c.json({ error: 'No employee data provided' }, 400);
+  }
+
+  const results: { email: string; status: string; error?: string }[] = [];
+
+  for (const row of rows) {
+    const email = row.email?.trim();
+    if (!email) { results.push({ email: '(missing)', status: 'skipped', error: 'No email' }); continue; }
+
+    try {
+      const { data: existing } = await supabase.from('User').select('id').eq('email', email).maybeSingle();
+      if (existing) { results.push({ email, status: 'skipped', error: 'Email already exists' }); continue; }
+
+      const rawId = row.thai_id || row.passport_no || '';
+      const defaultPassword = rawId.length >= 6 ? rawId.slice(-6) : 'admin123';
+      const hashedPassword = await hashPassword(defaultPassword);
+
+      const { data: newUser, error: userErr } = await supabase
+        .from('User')
+        .insert({ id: crypto.randomUUID(), email, password: hashedPassword, role: 'EMPLOYEE', updated_at: new Date().toISOString() })
+        .select('id').single();
+
+      if (userErr) { results.push({ email, status: 'error', error: userErr.message }); continue; }
+
+      const { error: empErr } = await supabase.from('Employee').insert({
+        id: crypto.randomUUID(),
+        employee_id: row.emp_id?.trim() || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+        prefix: normalizePrefix(row.prefix),
+        first_name: row.first_name?.trim() || 'New',
+        last_name: row.last_name?.trim() || 'Employee',
+        gender: normalizeGender(row.gender),
+        thai_id: row.thai_id?.trim() || null,
+        passport_no: row.passport_no?.trim() || null,
+        department: row.department?.trim() || null,
+        position: row.position?.trim() || null,
+        salary: row.salary ? parseFloat(row.salary) : null,
+        employment_date: parseDate(row.employment_date),
+        resignation_date: parseDate(row.resignation_date),
+        user_id: newUser.id,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (empErr) {
+        await supabase.from('User').delete().eq('id', newUser.id);
+        results.push({ email, status: 'error', error: empErr.message });
+      } else {
+        results.push({ email, status: 'created' });
+      }
+    } catch (err: any) {
+      results.push({ email, status: 'error', error: err.message });
+    }
+  }
+
+  const created = results.filter(r => r.status === 'created').length;
+  const failed = results.filter(r => r.status === 'error').length;
+  const skipped = results.filter(r => r.status === 'skipped').length;
+
+  await SystemLogger.logAction(requestorId, requestorRole, 'BULK_IMPORT', undefined, { created, failed, skipped }, c.env);
+
+  return c.json({ message: `Import complete: ${created} created, ${skipped} skipped, ${failed} failed`, results });
+});
+
 export default admin;
