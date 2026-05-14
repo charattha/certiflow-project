@@ -30,7 +30,7 @@ const documentRequestSchema = z.object({
   doc_lang: z.enum(['TH', 'EN']),
   reason: z.enum(['financial', 'visa', 'education', 'other']),
   // User-supplied template overrides (prefix, employment_date, last_working_date)
-  template_fields: z.record(z.string()).optional(),
+  template_fields: z.record(z.string(), z.string()).optional(),
   // Visa-only fields
   country_prefer_travel: z.string().optional(),
   departure_date: z.string().optional(),
@@ -67,6 +67,7 @@ employee.post('/requests', async (c) => {
   const { data: newRequest, error } = await supabase
     .from('DocumentRequest')
     .insert({
+      id: crypto.randomUUID(),
       request_id,
       doc_type,
       doc_lang,

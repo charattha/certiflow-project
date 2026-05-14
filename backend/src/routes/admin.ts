@@ -159,7 +159,7 @@ admin.post('/users', async (c) => {
 
   const { data: newUser, error: userCreateError } = await supabase
     .from('User')
-    .insert({ email, password: hashedPassword, role })
+    .insert({ id: crypto.randomUUID(), email, password: hashedPassword, role })
     .select('id')
     .single();
 
@@ -169,6 +169,7 @@ admin.post('/users', async (c) => {
     const { error: empCreateError } = await supabase
       .from('Employee')
       .insert({
+        id: crypto.randomUUID(),
         employee_id: emp_id || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
         first_name: first_name || 'New',
         last_name: last_name || 'Employee',
