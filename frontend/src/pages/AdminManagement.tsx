@@ -186,16 +186,19 @@ export default function AdminManagement() {
           <p className="text-stone-400 mt-1">Direct database management for {user?.role.replace('_', ' ')}.</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
-          <select 
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="bg-brand-surface border border-white/10 text-white rounded-lg px-4 py-2 focus:ring-1 focus:ring-brand-red outline-none transition-all"
-          >
-            <option value="">All Roles</option>
-            <option value="EMPLOYEE">Employees</option>
-            <option value="GENERAL_ADMIN">General Admins</option>
-            <option value="SUPER_ADMIN">Super Admins</option>
-          </select>
+          <div className="relative">
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="appearance-none bg-brand-surface border border-white/10 text-white rounded-lg px-4 py-2 pr-9 focus:ring-1 focus:ring-brand-red outline-none transition-all [&>option]:bg-[#1c1c1c]"
+            >
+              <option value="">All Roles</option>
+              <option value="EMPLOYEE">Employees</option>
+              <option value="GENERAL_ADMIN">General Admins</option>
+              <option value="SUPER_ADMIN">Super Admins</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400 pointer-events-none" />
+          </div>
           <button 
             onClick={fetchUsers}
             className="p-2.5 bg-white/5 hover:bg-white/10 text-white rounded-lg border border-white/10 transition-all"
