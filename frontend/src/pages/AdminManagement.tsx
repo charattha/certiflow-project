@@ -19,13 +19,18 @@ export default function AdminManagement() {
   const [formData, setFormData] = useState({
     email: '',
     role: 'EMPLOYEE',
+    prefix: '',
     first_name: '',
     last_name: '',
+    gender: '',
     emp_id: '',
     thai_id: '',
     passport_no: '',
     department: '',
-    position: ''
+    position: '',
+    salary: '',
+    employment_date: '',
+    resignation_date: '',
   });
 
   useEffect(() => {
@@ -52,13 +57,18 @@ export default function AdminManagement() {
     setFormData({
       email: u.email,
       role: u.role,
+      prefix: emp?.prefix || '',
       first_name: emp?.first_name || '',
       last_name: emp?.last_name || '',
+      gender: emp?.gender || '',
       emp_id: emp?.employee_id || '',
       thai_id: emp?.thai_id || '',
       passport_no: emp?.passport_no || '',
       department: emp?.department || '',
-      position: emp?.position || ''
+      position: emp?.position || '',
+      salary: emp?.salary ? String(emp.salary) : '',
+      employment_date: emp?.employment_date ? emp.employment_date.slice(0, 10) : '',
+      resignation_date: emp?.resignation_date ? emp.resignation_date.slice(0, 10) : '',
     });
     setIsModalOpen(true);
   };
@@ -116,13 +126,18 @@ export default function AdminManagement() {
     setFormData({
       email: '',
       role: 'EMPLOYEE',
+      prefix: '',
       first_name: '',
       last_name: '',
+      gender: '',
       emp_id: '',
       thai_id: '',
       passport_no: '',
       department: '',
-      position: ''
+      position: '',
+      salary: '',
+      employment_date: '',
+      resignation_date: '',
     });
   };
 
@@ -209,99 +224,105 @@ export default function AdminManagement() {
               </button>
             </div>
             
-            <form onSubmit={handleCreateOrUpdateUser} className="p-6 overflow-y-auto space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-stone-400 uppercase tracking-wider">Email Address</label>
-                  <input 
-                    type="email" 
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none"
-                    placeholder="john@example.com"
-                  />
+            <form onSubmit={handleCreateOrUpdateUser} className="p-6 overflow-y-auto space-y-5">
+              {/* Account */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Email Address *</label>
+                  <input type="email" required value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="john@example.com" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-stone-400 uppercase tracking-wider">System Role</label>
-                  <select 
-                    value={formData.role}
-                    onChange={(e) => setFormData({...formData, role: e.target.value})}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none"
-                  >
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">System Role</label>
+                  <select value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}
+                    className="w-full bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
                     <option value="EMPLOYEE">Employee</option>
                     <option value="GENERAL_ADMIN">General Admin</option>
-                    {/* Super Admin can only be added via direct database */}
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/5">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-stone-400 uppercase tracking-wider">First Name</label>
-                  <input 
-                    type="text" 
-                    value={formData.first_name}
-                    onChange={(e) => setFormData({...formData, first_name: e.target.value})}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none"
-                    placeholder="John"
-                  />
+              {/* Name */}
+              <div className="grid grid-cols-3 gap-5 pt-4 border-t border-white/5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Prefix</label>
+                  <select value={formData.prefix} onChange={(e) => setFormData({...formData, prefix: e.target.value})}
+                    className="w-full bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
+                    <option value="">—</option>
+                    <option value="Mr.">Mr.</option>
+                    <option value="Ms.">Ms.</option>
+                    <option value="Mrs.">Mrs.</option>
+                  </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-stone-400 uppercase tracking-wider">Last Name</label>
-                  <input 
-                    type="text" 
-                    value={formData.last_name}
-                    onChange={(e) => setFormData({...formData, last_name: e.target.value})}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none"
-                    placeholder="Doe"
-                  />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">First Name</label>
+                  <input type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="John" />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-stone-400 uppercase tracking-wider">Employee ID</label>
-                  <input 
-                    type="text" 
-                    value={formData.emp_id}
-                    onChange={(e) => setFormData({...formData, emp_id: e.target.value})}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none"
-                    placeholder="EMP-XXXX"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-stone-400 uppercase tracking-wider">Thai National ID</label>
-                  <input 
-                    type="text" 
-                    value={formData.thai_id}
-                    onChange={(e) => setFormData({...formData, thai_id: e.target.value})}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none"
-                    placeholder="13 Digits"
-                  />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Last Name</label>
+                  <input type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="Doe" />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-stone-400 uppercase tracking-wider">Passport Number</label>
-                  <input 
-                    type="text" 
-                    value={formData.passport_no}
-                    onChange={(e) => setFormData({...formData, passport_no: e.target.value})}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none"
-                    placeholder="Alternative ID"
-                  />
+              {/* Identity */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Gender</label>
+                  <select value={formData.gender} onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                    className="w-full bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
+                    <option value="">—</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-stone-400 uppercase tracking-wider">Department</label>
-                  <input 
-                    type="text" 
-                    value={formData.department}
-                    onChange={(e) => setFormData({...formData, department: e.target.value})}
-                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none"
-                    placeholder="Human Resources"
-                  />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Thai National ID</label>
+                  <input type="text" value={formData.thai_id} onChange={(e) => setFormData({...formData, thai_id: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="13 Digits" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Passport <span className="normal-case text-stone-500">(optional)</span></label>
+                  <input type="text" value={formData.passport_no} onChange={(e) => setFormData({...formData, passport_no: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="AB123456" />
+                </div>
+              </div>
+
+              {/* Employment */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-4 border-t border-white/5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Employee ID</label>
+                  <input type="text" value={formData.emp_id} onChange={(e) => setFormData({...formData, emp_id: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="EMP-XXXX" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Department</label>
+                  <input type="text" value={formData.department} onChange={(e) => setFormData({...formData, department: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="Human Resources" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Position</label>
+                  <input type="text" value={formData.position} onChange={(e) => setFormData({...formData, position: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="Manager" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Salary (THB)</label>
+                  <input type="number" min="0" step="0.01" value={formData.salary} onChange={(e) => setFormData({...formData, salary: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="25000" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Employment Date</label>
+                  <input type="date" value={formData.employment_date} onChange={(e) => setFormData({...formData, employment_date: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Resignation Date <span className="normal-case text-stone-500">(optional)</span></label>
+                  <input type="date" value={formData.resignation_date} onChange={(e) => setFormData({...formData, resignation_date: e.target.value})}
+                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" />
                 </div>
               </div>
 
@@ -364,7 +385,7 @@ export default function AdminManagement() {
                             </div>
                             <div>
                               <p className="font-semibold text-white">
-                                {u.employee ? `${u.employee.firstName} ${u.employee.lastName}` : u.email.split('@')[0]}
+                                {(() => { const emp = Array.isArray(u.Employee) ? u.Employee[0] : u.Employee; return emp ? `${emp.first_name} ${emp.last_name}` : u.email.split('@')[0]; })()}
                               </p>
                               <p className="text-xs text-stone-500">{u.email}</p>
                             </div>

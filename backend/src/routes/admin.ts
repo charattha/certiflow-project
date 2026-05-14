@@ -142,12 +142,17 @@ const singleUserSchema = z.object({
   email: z.string().email(),
   role: z.enum(['EMPLOYEE', 'GENERAL_ADMIN', 'SUPER_ADMIN']),
   emp_id: z.string().optional(),
+  prefix: z.string().optional(),
   first_name: z.string().optional(),
   last_name: z.string().optional(),
+  gender: z.string().optional(),
   thai_id: z.string().optional(),
   passport_no: z.string().optional(),
   department: z.string().optional(),
   position: z.string().optional(),
+  salary: z.union([z.string(), z.number()]).optional(),
+  employment_date: z.string().optional(),
+  resignation_date: z.string().optional(),
 });
 
 admin.post('/users', async (c) => {
@@ -162,7 +167,7 @@ admin.post('/users', async (c) => {
     return c.json({ error: 'Invalid payload', details: result.error.format() }, 400);
   }
 
-  const { email, role, emp_id, first_name, last_name, thai_id, passport_no, department, position } = result.data;
+  const { email, role, emp_id, prefix, first_name, last_name, gender, thai_id, passport_no, department, position, salary, employment_date, resignation_date } = result.data;
 
   if (role === 'SUPER_ADMIN') {
     return c.json({ error: 'Forbidden: Super Admins must be created via direct database access' }, 403);
@@ -198,12 +203,17 @@ admin.post('/users', async (c) => {
       .insert({
         id: crypto.randomUUID(),
         employee_id: emp_id || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+        prefix: normalizePrefix(prefix),
         first_name: first_name || 'New',
         last_name: last_name || 'Employee',
-        thai_id,
-        passport_no,
-        department,
-        position,
+        gender: normalizeGender(gender),
+        thai_id: thai_id || null,
+        passport_no: passport_no || null,
+        department: department || null,
+        position: position || null,
+        salary: salary ? parseFloat(String(salary)) : null,
+        employment_date: parseDate(employment_date),
+        resignation_date: parseDate(resignation_date),
         user_id: newUser.id,
         updated_at: new Date().toISOString(),
       });
@@ -221,13 +231,18 @@ admin.post('/users', async (c) => {
 
 const updateUserSchema = z.object({
   email: z.string().email().optional(),
+  prefix: z.string().optional(),
   first_name: z.string().optional(),
   last_name: z.string().optional(),
+  gender: z.string().optional(),
   emp_id: z.string().optional(),
   thai_id: z.string().optional(),
   passport_no: z.string().optional(),
   department: z.string().optional(),
   position: z.string().optional(),
+  salary: z.union([z.string(), z.number()]).optional(),
+  employment_date: z.string().optional(),
+  resignation_date: z.string().optional(),
 });
 
 admin.patch('/users/:id', async (c) => {
@@ -241,7 +256,7 @@ admin.patch('/users/:id', async (c) => {
   const result = updateUserSchema.safeParse(body);
   if (!result.success) return c.json({ error: 'Invalid payload', details: result.error.format() }, 400);
 
-  const { email, first_name, last_name, emp_id, thai_id, passport_no, department, position } = result.data;
+  const { email, prefix, first_name, last_name, gender, emp_id, thai_id, passport_no, department, position, salary, employment_date, resignation_date } = result.data;
 
   if (email) {
     const { error } = await supabase.from('User').update({ email, updated_at: new Date().toISOString() }).eq('id', targetId);
@@ -249,13 +264,18 @@ admin.patch('/users/:id', async (c) => {
   }
 
   const empUpdate: Record<string, any> = {};
+  if (prefix !== undefined) empUpdate.prefix = normalizePrefix(prefix);
   if (first_name !== undefined) empUpdate.first_name = first_name;
   if (last_name !== undefined) empUpdate.last_name = last_name;
+  if (gender !== undefined) empUpdate.gender = normalizeGender(gender);
   if (emp_id !== undefined) empUpdate.employee_id = emp_id;
   if (thai_id !== undefined) empUpdate.thai_id = thai_id;
   if (passport_no !== undefined) empUpdate.passport_no = passport_no;
   if (department !== undefined) empUpdate.department = department;
   if (position !== undefined) empUpdate.position = position;
+  if (salary !== undefined) empUpdate.salary = salary ? parseFloat(String(salary)) : null;
+  if (employment_date !== undefined) empUpdate.employment_date = parseDate(employment_date);
+  if (resignation_date !== undefined) empUpdate.resignation_date = parseDate(resignation_date);
 
   if (Object.keys(empUpdate).length > 0) {
     empUpdate.updated_at = new Date().toISOString();
