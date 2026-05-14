@@ -226,8 +226,8 @@ export default function AdminManagement() {
             
             <form onSubmit={handleCreateOrUpdateUser} className="p-6 overflow-y-auto space-y-5">
               {/* Account */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-3 gap-5">
+                <div className="col-span-2 space-y-1.5">
                   <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Email Address *</label>
                   <input type="email" required value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})}
                     className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="john@example.com" />
