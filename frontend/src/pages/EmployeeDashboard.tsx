@@ -74,9 +74,7 @@ interface FieldDef {
 
 const TEMPLATE_FIELDS: Record<string, FieldDef[]> = {
   salary_cert: [],
-  emp_cert: [
-    { key: 'last_working_date', label: 'Last Working Date', labelTH: 'วันสิ้นสุดการทำงาน', type: 'date', required: true },
-  ],
+  emp_cert: [],
   visa_letter: [], payslip_copy: [], tax_50: [],
 };
 
