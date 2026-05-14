@@ -83,9 +83,9 @@ model DocumentRequest {
   service_charge_id String?
   service_charge    ServiceCharge? @relation(fields: [service_charge_id], references: [id])
   on_duty_date String?
-  departure_date    DateTime
-  last_travel_date  DateTime
-  arrival_date      DateTime
+  departure_date    DateTime?
+  last_travel_date  DateTime?
+  arrival_date      DateTime?
   created_at        DateTime       @default(now())
   updated_at        DateTime       @updatedAt
   country_prefer_travel String?
