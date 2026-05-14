@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { Users, RefreshCcw, Loader2, CheckCircle, AlertCircle, ShieldCheck, UserCog, UserPlus, X, Trash2, Edit2 } from "lucide-react";
+import { Users, RefreshCcw, Loader2, CheckCircle, AlertCircle, ShieldCheck, UserCog, UserPlus, X, Trash2, Edit2, ChevronDown } from "lucide-react";
 import BulkUpload from "../components/BulkUpload";
 
 export default function AdminManagement() {
@@ -234,11 +234,14 @@ export default function AdminManagement() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">System Role</label>
-                  <select value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}
-                    className="w-full bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
-                    <option value="EMPLOYEE">Employee</option>
-                    <option value="GENERAL_ADMIN">General Admin</option>
-                  </select>
+                  <div className="relative">
+                    <select value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}
+                      className="w-full appearance-none bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 pr-10 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
+                      <option value="EMPLOYEE">Employee</option>
+                      <option value="GENERAL_ADMIN">General Admin</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
@@ -246,22 +249,28 @@ export default function AdminManagement() {
               <div className="grid grid-cols-2 gap-5 pt-4 border-t border-white/5">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Prefix</label>
-                  <select value={formData.prefix} onChange={(e) => setFormData({...formData, prefix: e.target.value})}
-                    className="w-full bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
-                    <option value="">—</option>
-                    <option value="Mr.">Mr.</option>
-                    <option value="Ms.">Ms.</option>
-                    <option value="Mrs.">Mrs.</option>
-                  </select>
+                  <div className="relative">
+                    <select value={formData.prefix} onChange={(e) => setFormData({...formData, prefix: e.target.value})}
+                      className="w-full appearance-none bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 pr-10 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
+                      <option value="">—</option>
+                      <option value="Mr.">Mr.</option>
+                      <option value="Ms.">Ms.</option>
+                      <option value="Mrs.">Mrs.</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400 pointer-events-none" />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Gender</label>
-                  <select value={formData.gender} onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                    className="w-full bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
-                    <option value="">—</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
+                  <div className="relative">
+                    <select value={formData.gender} onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                      className="w-full appearance-none bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 pr-10 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
+                      <option value="">—</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
