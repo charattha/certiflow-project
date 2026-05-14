@@ -25,7 +25,8 @@ export default function Login() {
 
       const { token, user } = response.data;
       login(token, user);
-      navigate('/dashboard');
+      const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'GENERAL_ADMIN';
+      navigate(isAdmin ? '/admin' : '/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to connect. Please try again.');
     } finally {

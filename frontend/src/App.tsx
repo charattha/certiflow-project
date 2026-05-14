@@ -24,8 +24,15 @@ function AppRoutes() {
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
       
       <Route element={<RootLayout />}>
-        {/* All authenticated users can access the employee dashboard */}
-        <Route path="/dashboard" element={<EmployeeDashboard />} />
+        {/* Employee dashboard — redirect admins to /admin */}
+        <Route
+          path="/dashboard"
+          element={
+            user && (user.role === 'SUPER_ADMIN' || user.role === 'GENERAL_ADMIN')
+              ? <Navigate to="/admin" replace />
+              : <EmployeeDashboard />
+          }
+        />
         
         {/* Only Admins can access the management dashboard */}
         <Route 
