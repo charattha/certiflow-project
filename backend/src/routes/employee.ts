@@ -79,6 +79,7 @@ employee.post('/requests', async (c) => {
       last_travel_date: last_travel_date ?? null,
       arrival_date: arrival_date ?? null,
       on_duty_date: on_duty_date ?? null,
+      updated_at: new Date().toISOString(),
     })
     .select()
     .single();
