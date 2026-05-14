@@ -48,16 +48,17 @@ export default function AdminManagement() {
 
   const handleOpenEdit = (u: any) => {
     setEditingId(u.id);
+    const emp = Array.isArray(u.Employee) ? u.Employee[0] : u.Employee;
     setFormData({
       email: u.email,
       role: u.role,
-      first_name: u.employee?.firstName || '',
-      last_name: u.employee?.lastName || '',
-      emp_id: u.employee?.employeeId || '',
-      thai_id: u.employee?.thai_id || '',
-      passport_no: u.employee?.passport_no || '',
-      department: u.employee?.department || '',
-      position: u.employee?.position || ''
+      first_name: emp?.first_name || '',
+      last_name: emp?.last_name || '',
+      emp_id: emp?.employee_id || '',
+      thai_id: emp?.thai_id || '',
+      passport_no: emp?.passport_no || '',
+      department: emp?.department || '',
+      position: emp?.position || ''
     });
     setIsModalOpen(true);
   };

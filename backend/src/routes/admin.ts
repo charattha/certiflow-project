@@ -192,6 +192,54 @@ admin.post('/users', async (c) => {
   return c.json({ message: 'User created successfully', userId: newUser.id, defaultPassword }, 201);
 });
 
+const updateUserSchema = z.object({
+  email: z.string().email().optional(),
+  first_name: z.string().optional(),
+  last_name: z.string().optional(),
+  emp_id: z.string().optional(),
+  thai_id: z.string().optional(),
+  passport_no: z.string().optional(),
+  department: z.string().optional(),
+  position: z.string().optional(),
+});
+
+admin.patch('/users/:id', async (c) => {
+  const targetId = c.req.param('id');
+  const user = c.get('user');
+  const requestorRole = user.role;
+  const requestorId = user.userId;
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const body = await c.req.json();
+  const result = updateUserSchema.safeParse(body);
+  if (!result.success) return c.json({ error: 'Invalid payload', details: result.error.format() }, 400);
+
+  const { email, first_name, last_name, emp_id, thai_id, passport_no, department, position } = result.data;
+
+  if (email) {
+    const { error } = await supabase.from('User').update({ email, updated_at: new Date().toISOString() }).eq('id', targetId);
+    if (error) return c.json({ error: error.message }, 500);
+  }
+
+  const empUpdate: Record<string, any> = {};
+  if (first_name !== undefined) empUpdate.first_name = first_name;
+  if (last_name !== undefined) empUpdate.last_name = last_name;
+  if (emp_id !== undefined) empUpdate.employee_id = emp_id;
+  if (thai_id !== undefined) empUpdate.thai_id = thai_id;
+  if (passport_no !== undefined) empUpdate.passport_no = passport_no;
+  if (department !== undefined) empUpdate.department = department;
+  if (position !== undefined) empUpdate.position = position;
+
+  if (Object.keys(empUpdate).length > 0) {
+    empUpdate.updated_at = new Date().toISOString();
+    const { error } = await supabase.from('Employee').update(empUpdate).eq('user_id', targetId);
+    if (error) return c.json({ error: error.message }, 500);
+  }
+
+  await SystemLogger.logAction(requestorId, requestorRole, 'USER_UPDATED', targetId, result.data, c.env);
+  return c.json({ message: 'User updated successfully' });
+});
+
 admin.delete('/users/:id', requireRole(['SUPER_ADMIN']), async (c) => {
   const targetId = c.req.param('id');
   const user = c.get('user');
