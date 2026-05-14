@@ -259,7 +259,7 @@ export default function EmployeeDashboard() {
                   <td className="px-6 py-4 text-right">
                     {item.status === "COMPLETED" && item.file_url ? (
                       <a href={item.file_url} className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/10 text-white border border-white/5 rounded-lg font-medium hover:bg-white/20 transition-all" download>
-                        <Download className="h-4 w-4" /> DOCX
+                        <Download className="h-4 w-4" /> PDF
                       </a>
                     ) : (
                       <span className="text-stone-500">—</span>

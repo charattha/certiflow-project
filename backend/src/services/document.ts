@@ -1,16 +1,10 @@
-import PizZip from 'pizzip';
-import Docxtemplater from 'docxtemplater';
+import { PDFDocument, rgb, PDFFont, PDFPage } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import { getSupabase } from '../utils/supabase';
 
-import salaryTemplate from '../templates/salary_cert.docx';
-import empCertTemplate from '../templates/emp_cert.docx';
-import visaTemplate from '../templates/visa_letter.docx';
+import sarabunFontData from '../templates/Sarabun-Regular.ttf';
 
-const TEMPLATES: Record<string, ArrayBuffer> = {
-  salary_cert: salaryTemplate,
-  emp_cert: empCertTemplate,
-  visa_letter: visaTemplate,
-};
+// ---------- helpers ----------
 
 function formatDate(date: Date | string | null | undefined): string {
   if (!date) return '';
@@ -18,39 +12,145 @@ function formatDate(date: Date | string | null | undefined): string {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: '2-digit' });
 }
 
-// Custom parser: normalizes keys like "date_now / mmmm-dd-yyyy" → "date_now"
-// and "employment date/..." → "employment_date", fixes "daparture" typo
-function makeParser(data: Record<string, string>) {
-  return function (tag: string) {
-    const normalized = tag
-      .split('/')[0]
-      .trim()
-      .replace(/\s+/g, '_')
-      .replace(/daparture/g, 'departure')
-      .toLowerCase();
-
-    return {
-      get(_scope: any) {
-        return data[normalized] ?? data[tag] ?? '';
-      },
-    };
-  };
+function pronouns(prefix: string): { subj: string; obj: string; poss: string } {
+  const p = prefix?.toLowerCase() ?? '';
+  if (p.includes('mrs') || p.includes('ms')) return { subj: 'she', obj: 'her', poss: 'her' };
+  return { subj: 'he', obj: 'him', poss: 'his' };
 }
 
-function fillTemplate(template: ArrayBuffer, data: Record<string, string>): Buffer {
-  const zip = new PizZip(template);
-  const doc = new Docxtemplater(zip, {
-    paragraphLoop: true,
-    linebreaks: true,
-    parser: makeParser(data),
-  });
-  doc.render();
-  return doc.getZip().generate({ type: 'nodebuffer', compression: 'DEFLATE' });
+function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (line && font.widthOfTextAtSize(test, size) > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
 }
+
+function drawParagraph(
+  page: PDFPage,
+  text: string,
+  x: number,
+  y: number,
+  size: number,
+  font: PDFFont,
+  maxWidth: number,
+  lineSpacing = 1.55,
+): number {
+  const lh = size * lineSpacing;
+  for (const line of wrapText(text, font, size, maxWidth)) {
+    page.drawText(line, { x, y, size, font, color: rgb(0, 0, 0) });
+    y -= lh;
+  }
+  return y;
+}
+
+async function buildPDF(paragraphs: Array<string | null>): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
+  const font = await pdfDoc.embedFont(sarabunFontData as ArrayBuffer);
+
+  const page = pdfDoc.addPage([595.28, 841.89]); // A4
+  const { width, height } = page.getSize();
+  const mx = 72;
+  const maxWidth = width - mx * 2;
+  const fs = 11;
+  const gap = fs * 0.9;
+  let y = height - 72;
+
+  for (const para of paragraphs) {
+    if (!para) {
+      y -= fs * 1.4;
+    } else {
+      y = drawParagraph(page, para, mx, y, fs, font, maxWidth);
+      y -= gap;
+    }
+  }
+
+  return pdfDoc.save();
+}
+
+// ---------- per-doc builders ----------
+
+function buildSalaryCertParagraphs(data: Record<string, string>): Array<string | null> {
+  const p = pronouns(data.prefix ?? '');
+  return [
+    data.date_now,
+    null,
+    'To Whom It May Concern',
+    null,
+    `This is to certify that ${data.prefix}. ${data.first_name} ${data.last_name} has been employed by TCC Hotel Asset Management Company Limited as the company managing Bangkok Marriott Marquis Queen’s Park since ${data.employment_date} to present in the position of ${data.position} in the ${data.department} Department.`,
+    null,
+    `During ${p.poss} stay, any assistance extended to ${p.obj} would be greatly appreciated. Should you require any further information, please feel free to contact me.`,
+    null,
+    'Sincerely yours,',
+    null,
+    null,
+    null,
+    'Preechayaporn Poungponprom',
+    'Assistant Director of Human Resources',
+    'Bangkok Marriott Marquis Queen’s Park',
+  ];
+}
+
+function buildEmpCertParagraphs(data: Record<string, string>): Array<string | null> {
+  const p = pronouns(data.prefix ?? '');
+  return [
+    data.date_now,
+    null,
+    'To Whom It May Concern',
+    null,
+    `This is to certify that ${data.prefix}. ${data.first_name} ${data.last_name} has been employed by Bangkok Marriott Marquis Queen’s Park since ${data.employment_date} to ${data.last_working_date} in the position of ${data.position} in the ${data.department} Department.`,
+    null,
+    `${data.prefix} ${data.last_name} resigned on ${p.poss} own accord and we wish every success in ${p.poss} future endeavor. We wish to express our appreciation for ${p.poss} contribution during the employment with us and our best wishes are accompanying ${p.obj} for the future career.`,
+    null,
+    'Sincerely yours,',
+    null,
+    null,
+    null,
+    'Preechayaporn Poungponprom',
+    'Assistant Director of Human Resources',
+    'Bangkok Marriott Marquis Queen’s Park',
+  ];
+}
+
+function buildVisaParagraphs(data: Record<string, string>): Array<string | null> {
+  const p = pronouns(data.prefix ?? '');
+  return [
+    data.date_now,
+    null,
+    'To Whom It May Concern',
+    null,
+    `This is to certify that ${data.prefix}. ${data.first_name} ${data.last_name} has been employed by TCC Hotel Asset Management Company Limited as the company managing Bangkok Marriott Marquis Queen’s Park since July 1, 2022 to present in the position of ${data.position} in the ${data.department} Department. ${p.poss.charAt(0).toUpperCase() + p.poss.slice(1)} current salary is THB ${data.salary} and service charge as of ${data.svc_monthly} is THB ${data.total_svc}.`,
+    null,
+    `${data.prefix}. ${data.first_name} ${data.last_name} has entitled to take the vacation for traveling to ${data.country} on ${data.departure_date} to ${data.last_travel_date} and ${data.prefix} will arrive to Thailand on ${data.arrival_date}. After that, ${data.prefix} will continue ${p.poss} duty on ${data.first_date_on_duty_date}.`,
+    null,
+    'I hereby certify that the above mentioned are true and correct. Should you require any further information, please feel free to contact me.',
+    null,
+    'Sincerely yours,',
+    null,
+    null,
+    null,
+    'Preechayaporn Poungponprom',
+    'Assistant Director of Human Resources',
+    'Bangkok Marriott Marquis Queen’s Park',
+  ];
+}
+
+// ---------- data builders (unchanged logic) ----------
 
 function resolvePrefix(employee: any, tf: Record<string, string> | null): string {
   if (tf?.prefix) return tf.prefix;
-  return employee.prefix?.replace('_', '.') ?? '';
+  const raw = employee.prefix ?? '';
+  return raw.replace(/_/g, '.');
 }
 
 async function buildSalaryCertData(employee: any, serviceCharge: any, tf: Record<string, string> | null): Promise<Record<string, string>> {
@@ -82,10 +182,9 @@ async function buildEmpCertData(employee: any, tf: Record<string, string> | null
 }
 
 async function buildVisaData(employee: any, serviceCharge: any, request: any): Promise<Record<string, string>> {
-  const prefix = employee.prefix?.replace('_', '.') ?? '';
   return {
     date_now: formatDate(request.created_at),
-    prefix,
+    prefix: employee.prefix?.replace(/_/g, '.') ?? '',
     first_name: employee.first_name ?? '',
     last_name: employee.last_name ?? '',
     position: employee.position ?? '',
@@ -101,6 +200,8 @@ async function buildVisaData(employee: any, serviceCharge: any, request: any): P
   };
 }
 
+// ---------- main entry points ----------
+
 export async function generateDocument(requestId: string, env: any): Promise<void> {
   const supabase = getSupabase(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -115,15 +216,15 @@ export async function generateDocument(requestId: string, env: any): Promise<voi
   const employee = Array.isArray(request.Employee) ? request.Employee[0] : request.Employee;
   if (!employee) throw new Error(`Employee not found for request: ${requestId}`);
 
-  const template = TEMPLATES[request.doc_type];
-  if (!template) {
-    await supabase.from('DocumentRequest')
-      .update({ status: 'COMPLETED', updatedAt: new Date().toISOString() })
-      .eq('id', requestId);
+  const supportedTypes = ['salary_cert', 'emp_cert', 'visa_letter'];
+  if (!supportedTypes.includes(request.doc_type)) {
+    await supabase.from('DocumentRequest').update({
+      status: 'COMPLETED',
+      updated_at: new Date().toISOString(),
+    }).eq('id', requestId);
     return;
   }
 
-  // Fetch service charge for current month if needed
   let serviceCharge = null;
   if (request.doc_type === 'salary_cert' || request.doc_type === 'visa_letter') {
     const now = new Date();
@@ -137,35 +238,33 @@ export async function generateDocument(requestId: string, env: any): Promise<voi
     serviceCharge = sc;
   }
 
-  // Build template data
   const tf = (request.template_fields as Record<string, string> | null) ?? null;
-  let data: Record<string, string>;
+  let paragraphs: Array<string | null>;
+
   if (request.doc_type === 'salary_cert') {
-    data = await buildSalaryCertData(employee, serviceCharge, tf);
+    const data = await buildSalaryCertData(employee, serviceCharge, tf);
+    paragraphs = buildSalaryCertParagraphs(data);
   } else if (request.doc_type === 'emp_cert') {
-    data = await buildEmpCertData(employee, tf);
-  } else if (request.doc_type === 'visa_letter') {
-    data = await buildVisaData(employee, serviceCharge, request);
+    const data = await buildEmpCertData(employee, tf);
+    paragraphs = buildEmpCertParagraphs(data);
   } else {
-    throw new Error(`No template for doc_type: ${request.doc_type}`);
+    const data = await buildVisaData(employee, serviceCharge, request);
+    paragraphs = buildVisaParagraphs(data);
   }
 
-  // Generate document
-  const docBuffer = fillTemplate(template, data);
-  const fileName = `${requestId}.docx`;
+  const pdfBytes = await buildPDF(paragraphs);
+  const fileName = `${requestId}.pdf`;
 
-  // Ensure bucket exists and upload
   await supabase.storage.createBucket('documents', { public: false }).catch(() => {});
   const { error: uploadError } = await supabase.storage
     .from('documents')
-    .upload(fileName, docBuffer, {
-      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    .upload(fileName, pdfBytes, {
+      contentType: 'application/pdf',
       upsert: true,
     });
 
   if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
-  // Create signed URL valid for 3 days
   const { data: signedData } = await supabase.storage
     .from('documents')
     .createSignedUrl(fileName, 60 * 60 * 24 * 3);
