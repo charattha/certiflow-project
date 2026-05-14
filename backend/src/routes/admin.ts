@@ -24,8 +24,8 @@ admin.get('/users', async (c) => {
 
   let query = supabase
     .from('User')
-    .select('id, email, role, createdAt, Employee(*)')
-    .order('createdAt', { ascending: false });
+    .select('id, email, role, created_at, Employee(*)')
+    .order('created_at', { ascending: false });
 
   if (role) query = query.eq('role', role);
 
@@ -40,7 +40,7 @@ admin.get('/requests', async (c) => {
   const { data, error } = await supabase
     .from('DocumentRequest')
     .select('*, Employee(*)')
-    .order('createdAt', { ascending: false });
+    .order('created_at', { ascending: false });
 
   if (error) return c.json({ error: error.message }, 500);
   return c.json(data);
@@ -95,10 +95,10 @@ admin.post('/users/:id/reset-password', async (c) => {
     .from('User')
     .update({
       password: hashedPassword,
-      failedLoginAttempts: 0,
-      lockoutUntil: null,
-      mustChangePassword: true,
-      updatedAt: new Date().toISOString(),
+      failed_login_attempts: 0,
+      lockout_until: null,
+      must_change_password: true,
+      updated_at: new Date().toISOString(),
     })
     .eq('id', targetId);
 
@@ -169,14 +169,14 @@ admin.post('/users', async (c) => {
     const { error: empCreateError } = await supabase
       .from('Employee')
       .insert({
-        employeeId: emp_id || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
-        firstName: first_name || 'New',
-        lastName: last_name || 'Employee',
+        employee_id: emp_id || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+        first_name: first_name || 'New',
+        last_name: last_name || 'Employee',
         thai_id,
         passport_no,
         department,
         position,
-        userId: newUser.id,
+        user_id: newUser.id,
       });
 
     if (empCreateError) {
@@ -211,7 +211,7 @@ admin.delete('/users/:id', requireRole(['SUPER_ADMIN']), async (c) => {
 
   if (targetId === requestorId) return c.json({ error: 'Self-deletion is not permitted' }, 400);
 
-  await supabase.from('Employee').delete().eq('userId', targetId);
+  await supabase.from('Employee').delete().eq('user_id', targetId);
   const { error: deleteError } = await supabase.from('User').delete().eq('id', targetId);
 
   if (deleteError) return c.json({ error: deleteError.message }, 500);

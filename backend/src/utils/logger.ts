@@ -12,10 +12,10 @@ export const SystemLogger = {
     try {
       const supabase = getSupabase(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
       await supabase.from('SystemAuditLog').insert({
-        actorId,
-        actorRole,
+        actor_id: actorId,
+        actor_role: actorRole,
         action,
-        targetId,
+        target_id: targetId,
         details,
       });
       console.log(`[AUDIT] User ${actorId} (${actorRole}) performed ${action}`);

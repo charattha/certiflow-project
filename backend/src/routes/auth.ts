@@ -44,7 +44,7 @@ auth.post('/login', validateRequest(schemas.login), async (c) => {
       const { data: empData } = await supabase
         .from('Employee')
         .select('*')
-        .eq('userId', user.id)
+        .eq('user_id', user.id)
         .maybeSingle();
       employee = empData;
     }
@@ -66,9 +66,9 @@ auth.post('/login', validateRequest(schemas.login), async (c) => {
     userId: user.id,
     role: user.role,
     employeeId: employee?.id,
-    empId: employee?.employeeId,
-    name: employee ? `${employee.firstName} ${employee.lastName}` : 'Admin',
-    mustChangePassword: user.mustChangePassword,
+    empId: employee?.employee_id,
+    name: employee ? `${employee.first_name} ${employee.last_name}` : 'Admin',
+    mustChangePassword: user.must_change_password,
   };
 
   const secret = new TextEncoder().encode(c.env.JWT_SECRET);
@@ -118,7 +118,7 @@ auth.post('/change-password', authenticateToken, async (c) => {
   const hashedNew = await hashPassword(newPassword);
   const { error: updateError } = await supabase
     .from('User')
-    .update({ password: hashedNew, mustChangePassword: false, updatedAt: new Date().toISOString() })
+    .update({ password: hashedNew, must_change_password: false, updated_at: new Date().toISOString() })
     .eq('id', userId);
 
   if (updateError) return c.json({ error: updateError.message }, 500);
