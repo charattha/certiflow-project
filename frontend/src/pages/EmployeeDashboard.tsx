@@ -72,27 +72,9 @@ interface FieldDef {
   options?: { value: string; label: string }[];
 }
 
-const PREFIX_FIELD: FieldDef = {
-  key: 'prefix',
-  label: 'Title / Prefix',
-  labelTH: 'คำนำหน้า',
-  type: 'select',
-  required: true,
-  options: [
-    { value: 'Mr.', label: 'Mr.' },
-    { value: 'Ms.', label: 'Ms.' },
-    { value: 'Mrs.', label: 'Mrs.' },
-  ],
-};
-
 const TEMPLATE_FIELDS: Record<string, FieldDef[]> = {
-  salary_cert: [
-    PREFIX_FIELD,
-    { key: 'employment_date', label: 'Employment Start Date', labelTH: 'วันที่เริ่มงาน', type: 'date', required: true },
-  ],
+  salary_cert: [],
   emp_cert: [
-    PREFIX_FIELD,
-    { key: 'employment_date', label: 'Employment Start Date', labelTH: 'วันที่เริ่มงาน', type: 'date', required: true },
     { key: 'last_working_date', label: 'Last Working Date', labelTH: 'วันสิ้นสุดการทำงาน', type: 'date', required: true },
   ],
   visa_letter: [], payslip_copy: [], tax_50: [],
