@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { RefreshCw, PlayCircle, Loader2, CheckCircle, Clock, Users, FileText } from "lucide-react";
+import { RefreshCw, PlayCircle, Loader2, CheckCircle, Clock, Users, FileText, Download, Trash2 } from "lucide-react";
 import AdminManagement from "./AdminManagement";
 
 export default function AdminDashboard() {
@@ -9,6 +9,7 @@ export default function AdminDashboard() {
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'requests' | 'users'>('requests');
 
   useEffect(() => {
@@ -28,6 +29,20 @@ export default function AdminDashboard() {
       console.error('Error fetching admin requests', e);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this document request? This cannot be undone.')) return;
+    setDeletingId(id);
+    try {
+      await api.delete(`/api/admin/requests/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setRequests(prev => prev.filter(r => r.id !== id));
+    } catch (e) {
+      console.error('Error deleting request', e);
+      alert('Failed to delete request.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -95,6 +110,7 @@ export default function AdminDashboard() {
                     <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs">Doc Type</th>
                     <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs">Status</th>
                     <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs text-right">Actions</th>
+                    <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs text-right">File</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10 bg-brand-surface text-stone-200">
@@ -123,17 +139,39 @@ export default function AdminDashboard() {
                         )}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => handleTrigger(req.id)}
-                          disabled={triggeringId === req.id}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg font-medium shadow-sm hover:bg-white/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-white/5 active:scale-[0.98]"
-                        >
-                          {triggeringId === req.id ? (
-                            <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
-                          ) : (
-                            <><PlayCircle className="h-4 w-4" /> Trigger/Reprint</>
-                          )}
-                        </button>
+                        <div className="inline-flex items-center gap-2">
+                          <button
+                            onClick={() => handleTrigger(req.id)}
+                            disabled={triggeringId === req.id}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg font-medium shadow-sm hover:bg-white/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-white/5 active:scale-[0.98]"
+                          >
+                            {triggeringId === req.id ? (
+                              <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
+                            ) : (
+                              <><PlayCircle className="h-4 w-4" /> Trigger/Reprint</>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(req.id)}
+                            disabled={deletingId === req.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg font-medium hover:bg-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                          >
+                            {deletingId === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {req.status === 'COMPLETED' && req.file_url ? (
+                          <a
+                            href={req.file_url}
+                            download
+                            className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/10 text-white border border-white/5 rounded-lg font-medium hover:bg-white/20 transition-all"
+                          >
+                            <Download className="h-4 w-4" /> PDF
+                          </a>
+                        ) : (
+                          <span className="text-stone-600">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}

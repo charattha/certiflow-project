@@ -63,6 +63,33 @@ admin.post('/requests/:id/trigger', async (c) => {
   return c.json({ message: 'Document triggered successfully', request: updatedRequest });
 });
 
+admin.delete('/requests/:id', async (c) => {
+  const id = c.req.param('id');
+  const user = c.get('user');
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const { data: req, error } = await supabase
+    .from('DocumentRequest')
+    .select('id, file_url')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) return c.json({ error: error.message }, 500);
+  if (!req) return c.json({ error: 'Request not found' }, 404);
+
+  // Remove the stored file if present
+  if (req.file_url) {
+    const fileName = `${id}.pdf`;
+    await supabase.storage.from('documents').remove([fileName]).catch(() => {});
+  }
+
+  const { error: delError } = await supabase.from('DocumentRequest').delete().eq('id', id);
+  if (delError) return c.json({ error: delError.message }, 500);
+
+  await SystemLogger.logAction(user.userId, user.role, 'REQUEST_DELETED', id, undefined, c.env);
+  return c.json({ message: 'Request deleted' });
+});
+
 admin.post('/users/:id/reset-password', async (c) => {
   const targetId = c.req.param('id');
   const user = c.get('user');
