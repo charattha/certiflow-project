@@ -103,14 +103,13 @@ export default function AdminDashboard() {
                   
                   {requests.map((req) => (
                     <tr key={req.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-6 py-4 text-stone-400 font-mono text-xs">{req.requestId}</td>
+                      <td className="px-6 py-4 text-stone-400 font-mono text-xs">{req.request_id}</td>
                       <td className="px-6 py-4">
-                        <p className="font-medium text-white">{req.employee?.firstName} {req.employee?.lastName}</p>
-                        <p className="text-xs text-stone-500 mt-0.5">{req.employee?.employeeId}</p>
+                        {(() => { const emp = Array.isArray(req.Employee) ? req.Employee[0] : req.Employee; return (<><p className="font-medium text-white">{emp?.first_name} {emp?.last_name}</p><p className="text-xs text-stone-500 mt-0.5">{emp?.employee_id}</p></>); })()}
                       </td>
                       <td className="px-6 py-4">
-                        <span className="font-medium text-stone-200">{req.docType}</span>
-                        <span className="ml-2 bg-brand-red/20 text-brand-red border border-brand-red/30 px-2 py-0.5 rounded text-xs font-medium">{req.docLang}</span>
+                        <span className="font-medium text-stone-200">{req.doc_type}</span>
+                        <span className="ml-2 bg-brand-red/20 text-brand-red border border-brand-red/30 px-2 py-0.5 rounded text-xs font-medium">{req.doc_lang}</span>
                       </td>
                       <td className="px-6 py-4">
                         {req.status === "PENDING" ? (
