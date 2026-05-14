@@ -318,7 +318,7 @@ export default function EmployeeDashboard() {
                 <div>
                   <label className="block text-sm font-medium text-stone-300 tracking-wide uppercase mb-2">{text.labelReason}</label>
                   <div className="relative">
-                    <select value={reasonId} onChange={(e) => setReasonId(e.target.value)} className="w-full border border-white/10 rounded-lg px-4 py-3 font-medium text-white focus:outline-none focus:ring-2 focus:ring-brand-red appearance-none bg-black/20">
+                    <select value={reasonId} onChange={(e) => setReasonId(e.target.value)} className="w-full border border-white/10 rounded-lg px-4 py-3 font-medium text-white focus:outline-none focus:ring-2 focus:ring-brand-red appearance-none bg-[#1c1c1c] [&>option]:bg-[#1c1c1c] [&>option]:text-white">
                       <option value="financial">Financial / Loan</option>
                       <option value="visa">Visa Application</option>
                       <option value="education">Education</option>
