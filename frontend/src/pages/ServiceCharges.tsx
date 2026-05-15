@@ -124,8 +124,6 @@ export default function ServiceCharges() {
     }
   };
 
-  const totalAmount = charges.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
-
   // Group charges by month/year for display
   const periods = [...new Set(charges.map(c => `${c.year}-${String(c.month).padStart(2,'0')}`))].sort().reverse();
 
@@ -253,24 +251,6 @@ export default function ServiceCharges() {
           <button onClick={() => setStatus(null)} className="text-xs uppercase tracking-widest opacity-60 hover:opacity-100">Dismiss</button>
         </div>
       )}
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div className="bg-brand-surface rounded-xl p-5 border border-white/10">
-          <p className="text-xs text-stone-500 uppercase tracking-wider mb-1">Total Records</p>
-          <p className="text-3xl font-bold text-white">{charges.length}</p>
-        </div>
-        <div className="bg-brand-surface rounded-xl p-5 border border-white/10">
-          <p className="text-xs text-stone-500 uppercase tracking-wider mb-1">Total Distributed</p>
-          <p className="text-2xl font-bold text-brand-red">
-            ฿{totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-          </p>
-        </div>
-        <div className="bg-brand-surface rounded-xl p-5 border border-white/10">
-          <p className="text-xs text-stone-500 uppercase tracking-wider mb-1">Active Employees</p>
-          <p className="text-3xl font-bold text-white">{employeeCount}</p>
-        </div>
-      </div>
 
       {/* Table grouped by period */}
       {periods.length === 0 && !isLoading ? (
