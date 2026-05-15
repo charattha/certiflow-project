@@ -522,7 +522,8 @@ admin.post('/service-charges/distribute', async (c) => {
   if (empErr) return c.json({ error: empErr.message }, 500);
   if (!employees || employees.length === 0) return c.json({ error: 'No active employees found' }, 400);
 
-  const perEmployee = Math.round((totalPool / employees.length) * 100) / 100;
+  // total_pool is the per-employee amount — everyone gets the same amount
+  const perEmployee = Math.round(totalPool * 100) / 100;
 
   // Upsert — overwrite if same employee+month+year already exists
   const rows = employees.map((emp: any) => ({

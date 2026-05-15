@@ -40,11 +40,11 @@ export default function ServiceCharges() {
 
   useEffect(() => { fetchCharges(); fetchEmployeeCount(); }, [token]);
 
-  // Live preview when pool amount or month changes
+  // Live preview when amount changes
   useEffect(() => {
-    const pool = parseFloat(distributeForm.total_pool);
-    if (!isNaN(pool) && pool > 0 && employeeCount > 0) {
-      setPreview({ per: Math.round((pool / employeeCount) * 100) / 100, count: employeeCount });
+    const amount = parseFloat(distributeForm.total_pool);
+    if (!isNaN(amount) && amount > 0 && employeeCount > 0) {
+      setPreview({ per: amount, count: employeeCount });
     } else {
       setPreview(null);
     }
@@ -152,7 +152,7 @@ export default function ServiceCharges() {
 
             <form onSubmit={handleDistribute} className="p-6 space-y-5">
               <p className="text-stone-400 text-sm">
-                Enter the total service charge pool for the month. The system will automatically divide it equally among all <span className="text-white font-semibold">{employeeCount} active employees</span>.
+                Enter the service charge amount per employee. The system will apply this amount to all <span className="text-white font-semibold">{employeeCount} active employees</span>.
               </p>
 
               {/* Month / Year */}
@@ -183,7 +183,7 @@ export default function ServiceCharges() {
 
               {/* Total Pool */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Total Service Charge Pool (THB)</label>
+                <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Service Charge Per Employee (THB)</label>
                 <input type="number" required min="0.01" step="0.01"
                   value={distributeForm.total_pool}
                   onChange={(e) => setDistributeForm({ ...distributeForm, total_pool: e.target.value })}
@@ -194,19 +194,21 @@ export default function ServiceCharges() {
               {/* Live preview */}
               {preview && (
                 <div className="bg-brand-red/10 border border-brand-red/20 rounded-xl p-4 space-y-2">
-                  <p className="text-xs text-stone-400 uppercase tracking-wider font-semibold">Distribution Preview</p>
+                  <p className="text-xs text-stone-400 uppercase tracking-wider font-semibold">Preview</p>
                   <div className="flex justify-between items-center">
-                    <span className="text-stone-300 text-sm">Employees</span>
-                    <span className="text-white font-bold">{preview.count}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-stone-300 text-sm">Per employee</span>
+                    <span className="text-stone-300 text-sm">Each employee receives</span>
                     <span className="text-brand-red font-bold text-lg">
                       ฿{preview.per.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-stone-300 text-sm">Total across {preview.count} employees</span>
+                    <span className="text-white font-semibold">
+                      ฿{(preview.per * preview.count).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
                   <p className="text-xs text-stone-500 pt-1">
-                    ⚠ If records already exist for {MONTHS[distributeForm.month - 1]} {distributeForm.year}, they will be replaced.
+                    ⚠ Existing records for {MONTHS[distributeForm.month - 1]} {distributeForm.year} will be replaced.
                   </p>
                 </div>
               )}
