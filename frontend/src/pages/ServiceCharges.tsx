@@ -88,14 +88,16 @@ const fetchCharges = async () => {
     }
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingId) return;
+  // Update all records in a period to the new amount
+  const handleSavePeriodEdit = async (periodCharges: any[]) => {
     setIsSavingEdit(true);
     try {
-      await api.patch(`/api/admin/service-charges/${editingId}`, { amount: parseFloat(editAmount) }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setStatus({ type: 'success', message: 'Amount updated' });
+      await Promise.all(periodCharges.map(c =>
+        api.patch(`/api/admin/service-charges/${c.id}`, { amount: parseFloat(editAmount) }, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ));
+      setStatus({ type: 'success', message: 'Service charge updated' });
       setEditingId(null);
       fetchCharges();
     } catch (err: any) {
@@ -105,14 +107,16 @@ const fetchCharges = async () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this service charge record?')) return;
-    setDeletingId(id);
+  // Delete all records for a period
+  const handleDeletePeriod = async (periodCharges: any[]) => {
+    if (!confirm('Delete service charge for this month? This removes records for all employees.')) return;
+    const period = `${periodCharges[0].year}-${String(periodCharges[0].month).padStart(2,'0')}`;
+    setDeletingId(period);
     try {
-      await api.delete(`/api/admin/service-charges/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setCharges(prev => prev.filter(c => c.id !== id));
+      await Promise.all(periodCharges.map(c =>
+        api.delete(`/api/admin/service-charges/${c.id}`, { headers: { Authorization: `Bearer ${token}` } })
+      ));
+      setCharges(prev => prev.filter(c => !periodCharges.find(p => p.id === c.id)));
     } catch (err: any) {
       setStatus({ type: 'error', message: err.response?.data?.error || 'Delete failed' });
     } finally {
@@ -230,102 +234,82 @@ const fetchCharges = async () => {
         </div>
       )}
 
-      {/* Table grouped by period */}
-      {periods.length === 0 && !isLoading ? (
-        <div className="bg-brand-surface rounded-xl border border-white/10 p-12 text-center text-stone-500">
-          No service charges uploaded yet. Click <span className="text-white">"Upload This Month"</span> to get started.
-        </div>
-      ) : (
-        periods.map((period) => {
-          const [y, m] = period.split('-');
-          const periodLabel = `${MONTHS[parseInt(m) - 1]} ${y}`;
-          const periodCharges = charges.filter(c => c.year === parseInt(y) && c.month === parseInt(m));
-          const periodTotal = periodCharges.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+      {/* One row per period */}
+      <div className="bg-brand-surface rounded-xl shadow-2xl border border-white/10 overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-[#211E1F] text-stone-400 border-b border-white/10">
+            <tr>
+              <th className="px-6 py-4 font-medium uppercase text-xs">Period</th>
+              <th className="px-6 py-4 font-medium uppercase text-xs">Service Charge / Employee</th>
+              <th className="px-6 py-4 font-medium uppercase text-xs text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/10 text-stone-200">
+            {isLoading ? (
+              <tr><td colSpan={3} className="p-12 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-brand-red" /></td></tr>
+            ) : periods.length === 0 ? (
+              <tr><td colSpan={3} className="p-12 text-center text-stone-500">No service charges yet. Click <span className="text-white">"Upload This Month"</span> to get started.</td></tr>
+            ) : (
+              periods.map((period) => {
+                const [y, m] = period.split('-');
+                const periodLabel = `${MONTHS[parseInt(m) - 1]} ${y}`;
+                const periodCharges = charges.filter(c => c.year === parseInt(y) && c.month === parseInt(m));
+                // All employees in a period have the same amount
+                const amount = periodCharges[0] ? parseFloat(periodCharges[0].amount) : 0;
+                const isEditing = editingId === period;
 
-          return (
-            <div key={period} className="bg-brand-surface rounded-xl shadow-2xl border border-white/10 overflow-hidden">
-              <div className="px-6 py-3 bg-[#211E1F] border-b border-white/10 flex justify-between items-center">
-                <span className="font-semibold text-white">{periodLabel}</span>
-                <span className="text-sm text-stone-400">
-                  {periodCharges.length} employees &nbsp;·&nbsp;
-                  <span className="text-brand-red font-medium">
-                    Pool ฿{periodTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                  </span>
-                </span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm whitespace-nowrap">
-                  <thead className="text-stone-500 border-b border-white/5">
-                    <tr>
-                      <th className="px-6 py-3 font-medium uppercase text-xs">Employee</th>
-                      <th className="px-6 py-3 font-medium uppercase text-xs">Department</th>
-                      <th className="px-6 py-3 font-medium uppercase text-xs">Service Charge</th>
-                      <th className="px-6 py-3 font-medium uppercase text-xs text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5 text-stone-200">
-                    {periodCharges.map((charge) => {
-                      const emp = Array.isArray(charge.Employee) ? charge.Employee[0] : charge.Employee;
-                      const isEditing = editingId === charge.id;
-                      return (
-                        <tr key={charge.id} className="hover:bg-white/5 transition-colors">
-                          <td className="px-6 py-3">
-                            <p className="font-medium text-white">{emp?.first_name} {emp?.last_name}</p>
-                            <p className="text-xs text-stone-500">{emp?.employee_id}</p>
-                          </td>
-                          <td className="px-6 py-3 text-stone-400">{emp?.department || '—'}</td>
-                          <td className="px-6 py-3">
-                            {isEditing ? (
-                              <input
-                                type="number" step="0.01" min="0"
-                                value={editAmount}
-                                onChange={(e) => setEditAmount(e.target.value)}
-                                className="w-36 bg-black/30 border border-brand-red/40 rounded px-2 py-1 text-white text-sm outline-none focus:ring-1 focus:ring-brand-red"
-                                autoFocus
-                              />
-                            ) : (
-                              <span className="text-brand-red font-semibold">
-                                ฿{parseFloat(charge.amount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-6 py-3 text-right">
-                            <div className="inline-flex items-center gap-2">
-                              {isEditing ? (
-                                <>
-                                  <button onClick={handleSaveEdit} disabled={isSavingEdit}
-                                    className="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-xs font-medium hover:bg-emerald-500/30 transition-all disabled:opacity-50">
-                                    {isSavingEdit ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
-                                  </button>
-                                  <button onClick={() => setEditingId(null)}
-                                    className="px-3 py-1 bg-white/5 text-stone-400 border border-white/10 rounded text-xs font-medium hover:bg-white/10 transition-all">
-                                    Cancel
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button onClick={() => { setEditingId(charge.id); setEditAmount(String(charge.amount)); }}
-                                    className="p-1.5 hover:bg-blue-500/20 text-blue-400 rounded transition-colors" title="Adjust amount">
-                                    <Edit2 className="h-4 w-4" />
-                                  </button>
-                                  <button onClick={() => handleDelete(charge.id)} disabled={deletingId === charge.id}
-                                    className="p-1.5 hover:bg-brand-red/20 text-brand-red rounded transition-colors disabled:opacity-50" title="Delete">
-                                    {deletingId === charge.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          );
-        })
-      )}
+                return (
+                  <tr key={period} className="hover:bg-white/5 transition-colors">
+                    <td className="px-6 py-4 font-semibold text-white">{periodLabel}</td>
+                    <td className="px-6 py-4">
+                      {isEditing ? (
+                        <input
+                          type="number" step="0.01" min="0"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          className="w-40 bg-black/30 border border-brand-red/40 rounded px-3 py-1.5 text-white text-sm outline-none focus:ring-1 focus:ring-brand-red"
+                          autoFocus
+                        />
+                      ) : (
+                        <span className="text-brand-red font-semibold">
+                          ฿{amount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="inline-flex items-center gap-2">
+                        {isEditing ? (
+                          <>
+                            <button onClick={() => handleSavePeriodEdit(periodCharges)} disabled={isSavingEdit}
+                              className="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded text-xs font-medium hover:bg-emerald-500/30 transition-all disabled:opacity-50">
+                              {isSavingEdit ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+                            </button>
+                            <button onClick={() => setEditingId(null)}
+                              className="px-3 py-1 bg-white/5 text-stone-400 border border-white/10 rounded text-xs font-medium hover:bg-white/10 transition-all">
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => { setEditingId(period); setEditAmount(String(amount)); }}
+                              className="p-1.5 hover:bg-blue-500/20 text-blue-400 rounded transition-colors" title="Edit amount">
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => handleDeletePeriod(periodCharges)} disabled={deletingId === period}
+                              className="p-1.5 hover:bg-brand-red/20 text-brand-red rounded transition-colors disabled:opacity-50" title="Delete period">
+                              {deletingId === period ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
