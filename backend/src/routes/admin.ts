@@ -410,4 +410,106 @@ admin.post('/employees/bulk', async (c) => {
   return c.json({ message: `Import complete: ${created} created, ${skipped} skipped, ${failed} failed`, results });
 });
 
+// ─────────────────────────────────────────────
+// SERVICE CHARGES CRUD
+// ─────────────────────────────────────────────
+
+const serviceChargeSchema = z.object({
+  employee_id: z.string().uuid(),
+  month: z.number().int().min(1).max(12),
+  year: z.number().int().min(2000).max(2100),
+  amount: z.union([z.string(), z.number()]),
+});
+
+// GET all service charges (with employee info)
+admin.get('/service-charges', async (c) => {
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const { data, error } = await supabase
+    .from('ServiceCharge')
+    .select('*, Employee(id, employee_id, first_name, last_name, department)')
+    .order('year', { ascending: false })
+    .order('month', { ascending: false });
+
+  if (error) return c.json({ error: error.message }, 500);
+  return c.json(data);
+});
+
+// POST create service charge
+admin.post('/service-charges', async (c) => {
+  const user = c.get('user');
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const body = await c.req.json();
+  const result = serviceChargeSchema.safeParse(body);
+  if (!result.success) return c.json({ error: 'Invalid payload', details: result.error.format() }, 400);
+
+  const { employee_id, month, year, amount } = result.data;
+
+  // Check for duplicate (same employee + month + year)
+  const { data: existing } = await supabase
+    .from('ServiceCharge')
+    .select('id')
+    .eq('employee_id', employee_id)
+    .eq('month', month)
+    .eq('year', year)
+    .maybeSingle();
+
+  if (existing) return c.json({ error: 'A service charge for this employee/month/year already exists' }, 400);
+
+  const { data: newCharge, error } = await supabase
+    .from('ServiceCharge')
+    .insert({
+      id: crypto.randomUUID(),
+      employee_id,
+      month,
+      year,
+      amount: parseFloat(String(amount)),
+      updated_at: new Date().toISOString(),
+    })
+    .select('*, Employee(id, employee_id, first_name, last_name, department)')
+    .single();
+
+  if (error) return c.json({ error: error.message }, 500);
+
+  await SystemLogger.logAction(user.userId, user.role, 'SERVICE_CHARGE_CREATED', newCharge.id, { employee_id, month, year, amount }, c.env);
+  return c.json(newCharge, 201);
+});
+
+// PATCH update service charge amount
+admin.patch('/service-charges/:id', async (c) => {
+  const id = c.req.param('id');
+  const user = c.get('user');
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const body = await c.req.json();
+  const amount = parseFloat(String(body.amount));
+  if (isNaN(amount) || amount < 0) return c.json({ error: 'Invalid amount' }, 400);
+
+  const { data, error } = await supabase
+    .from('ServiceCharge')
+    .update({ amount, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('*, Employee(id, employee_id, first_name, last_name, department)')
+    .single();
+
+  if (error) return c.json({ error: error.message }, 500);
+
+  await SystemLogger.logAction(user.userId, user.role, 'SERVICE_CHARGE_UPDATED', id, { amount }, c.env);
+  return c.json(data);
+});
+
+// DELETE service charge
+admin.delete('/service-charges/:id', async (c) => {
+  const id = c.req.param('id');
+  const user = c.get('user');
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const { error } = await supabase.from('ServiceCharge').delete().eq('id', id);
+  if (error) return c.json({ error: error.message }, 500);
+
+  await SystemLogger.logAction(user.userId, user.role, 'SERVICE_CHARGE_DELETED', id, undefined, c.env);
+  return c.json({ message: 'Service charge deleted' });
+});
+
 export default admin;

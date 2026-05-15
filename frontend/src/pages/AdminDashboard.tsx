@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { RefreshCw, PlayCircle, Loader2, CheckCircle, Clock, Users, FileText, Download, Trash2 } from "lucide-react";
+import { RefreshCw, PlayCircle, Loader2, CheckCircle, Clock, Users, FileText, Download, Trash2, Receipt } from "lucide-react";
 import AdminManagement from "./AdminManagement";
+import ServiceCharges from "./ServiceCharges";
 
 export default function AdminDashboard() {
   const { token } = useAuth();
@@ -10,7 +11,7 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [triggeringId, setTriggeringId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'requests' | 'users'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'users' | 'billing'>('requests');
 
   useEffect(() => {
     if (activeTab === 'requests') {
@@ -52,7 +53,7 @@ export default function AdminDashboard() {
       await api.post(`/api/admin/requests/${id}/trigger`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchRequests(); // Refresh list to see COMPLETED status
+      fetchRequests();
     } catch (e) {
       console.error('Error triggering document', e);
       alert('Failed to trigger generation.');
@@ -63,7 +64,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 md:space-y-8 font-sans">
-      
+
       {/* Admin Header Card */}
       <div className="bg-brand-surface rounded-2xl p-6 md:p-8 shadow-2xl text-white flex flex-col md:flex-row justify-between items-center relative overflow-hidden gap-4 border border-white/10">
         <div className="relative z-10 w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -72,34 +73,40 @@ export default function AdminDashboard() {
             <p className="font-light text-stone-300 text-sm md:text-base">Review, trigger, and manage all employee requests and system access.</p>
           </div>
           <div className="flex gap-2 w-full md:w-auto">
-            <button 
+            <button
               onClick={() => setActiveTab('requests')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all flex-1 md:flex-none justify-center ${activeTab === 'requests' ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]' : 'bg-white/5 text-stone-400 hover:bg-white/10'}`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all flex-1 md:flex-none justify-center ${activeTab === 'requests' ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]' : 'bg-white/5 text-stone-400 hover:bg-white/10'}`}
             >
-              <FileText className="h-5 w-5" /> Requests
+              <FileText className="h-4 w-4" /> Requests
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all flex-1 md:flex-none justify-center ${activeTab === 'users' ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]' : 'bg-white/5 text-stone-400 hover:bg-white/10'}`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all flex-1 md:flex-none justify-center ${activeTab === 'users' ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]' : 'bg-white/5 text-stone-400 hover:bg-white/10'}`}
             >
-              <Users className="h-5 w-5" /> Users
+              <Users className="h-4 w-4" /> Users
+            </button>
+            <button
+              onClick={() => setActiveTab('billing')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all flex-1 md:flex-none justify-center ${activeTab === 'billing' ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]' : 'bg-white/5 text-stone-400 hover:bg-white/10'}`}
+            >
+              <Receipt className="h-4 w-4" /> Billing
             </button>
           </div>
         </div>
         <div className="absolute top-1/2 right-1/4 w-48 h-48 bg-brand-red opacity-10 rounded-full blur-3xl -translate-y-1/2"></div>
       </div>
 
-      {activeTab === 'requests' ? (
+      {activeTab === 'requests' && (
         <div className="space-y-6">
           <div className="flex justify-end">
-            <button 
+            <button
               onClick={fetchRequests}
               className="flex items-center gap-2 bg-white/5 text-white px-4 py-2 rounded-lg font-medium border border-white/10 hover:bg-white/10 transition-all active:scale-[0.98]"
             >
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /> Refresh Requests
             </button>
           </div>
-          
+
           <div className="bg-brand-surface rounded-xl shadow-2xl border border-white/10 overflow-hidden">
             <div className="p-0 overflow-x-auto">
               <table className="w-full text-left text-sm whitespace-nowrap">
@@ -114,9 +121,9 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/10 bg-brand-surface text-stone-200">
-                  {isLoading && <tr><td colSpan={5} className="p-8 text-center text-brand-red"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></td></tr>}
-                  {!isLoading && requests.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-stone-500 font-medium">No active requests logged in the system.</td></tr>}
-                  
+                  {isLoading && <tr><td colSpan={6} className="p-8 text-center text-brand-red"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></td></tr>}
+                  {!isLoading && requests.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-stone-500 font-medium">No active requests logged in the system.</td></tr>}
+
                   {requests.map((req) => (
                     <tr key={req.id} className="hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4 text-stone-400 font-mono text-xs">{req.request_id}</td>
@@ -180,9 +187,11 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-      ) : (
-        <AdminManagement />
       )}
+
+      {activeTab === 'users' && <AdminManagement />}
+
+      {activeTab === 'billing' && <ServiceCharges />}
     </div>
   );
 }
