@@ -212,8 +212,8 @@ export default function ServiceCharges() {
                 <button type="submit" disabled={isDistributing || !preview}
                   className="flex-[2] bg-brand-red text-white py-2.5 rounded-lg font-semibold hover:bg-[#8A0524] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                   {isDistributing
-                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Distributing...</>
-                    : <><Zap className="h-4 w-4" /> Distribute to All Staff</>}
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
+                    : 'Save'}
                 </button>
               </div>
             </form>
