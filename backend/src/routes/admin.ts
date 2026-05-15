@@ -231,6 +231,7 @@ admin.post('/users', async (c) => {
 
 const updateUserSchema = z.object({
   email: z.string().email().optional(),
+  role: z.enum(['EMPLOYEE', 'GENERAL_ADMIN']).optional(),
   prefix: z.string().optional(),
   first_name: z.string().optional(),
   last_name: z.string().optional(),
@@ -252,16 +253,37 @@ admin.patch('/users/:id', async (c) => {
   const requestorId = user.userId;
   const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
+  // Role-based access: GENERAL_ADMIN can only edit EMPLOYEE users
+  const { data: targetUser, error: targetErr } = await supabase
+    .from('User').select('role').eq('id', targetId).maybeSingle();
+  if (targetErr) return c.json({ error: targetErr.message }, 500);
+  if (!targetUser) return c.json({ error: 'User not found' }, 404);
+  if (requestorRole === 'GENERAL_ADMIN' && targetUser.role !== 'EMPLOYEE') {
+    return c.json({ error: 'Forbidden: General Admins can only edit Employee records' }, 403);
+  }
+
   const body = await c.req.json();
   const result = updateUserSchema.safeParse(body);
   if (!result.success) return c.json({ error: 'Invalid payload', details: result.error.format() }, 400);
 
-  const { email, prefix, first_name, last_name, gender, emp_id, thai_id, passport_no, department, position, salary, employment_date, resignation_date } = result.data;
+  const { email, role, prefix, first_name, last_name, gender, emp_id, thai_id, passport_no, department, position, salary, employment_date, resignation_date } = result.data;
 
-  if (email) {
-    const { error } = await supabase.from('User').update({ email, updated_at: new Date().toISOString() }).eq('id', targetId);
-    if (error) return c.json({ error: error.message }, 500);
+  // Build User-level update
+  const userUpdate: Record<string, any> = { updated_at: new Date().toISOString() };
+  if (email) userUpdate.email = email;
+
+  // Only SUPER_ADMIN can change role; GENERAL_ADMIN cannot
+  if (role !== undefined && requestorRole === 'SUPER_ADMIN') {
+    userUpdate.role = role;
   }
+
+  const { data: updatedUser, error: userUpdateErr } = await supabase
+    .from('User')
+    .update(userUpdate)
+    .eq('id', targetId)
+    .select('id, role, email')
+    .single();
+  if (userUpdateErr) return c.json({ error: userUpdateErr.message }, 500);
 
   const empUpdate: Record<string, any> = {};
   if (prefix !== undefined) empUpdate.prefix = normalizePrefix(prefix);
@@ -284,12 +306,13 @@ admin.patch('/users/:id', async (c) => {
   }
 
   await SystemLogger.logAction(requestorId, requestorRole, 'USER_UPDATED', targetId, result.data, c.env);
-  return c.json({ message: 'User updated successfully' });
+  return c.json({ message: 'User updated successfully', role: updatedUser?.role });
 });
 
-admin.delete('/users/:id', requireRole(['SUPER_ADMIN']), async (c) => {
+admin.delete('/users/:id', async (c) => {
   const targetId = c.req.param('id');
   const user = c.get('user');
+  const requestorRole = user.role;
   const requestorId = user.userId;
   const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -306,6 +329,11 @@ admin.delete('/users/:id', requireRole(['SUPER_ADMIN']), async (c) => {
     return c.json({ error: 'Forbidden: Super Admins can only be deleted via direct database access' }, 403);
   }
 
+  // GENERAL_ADMIN can only delete EMPLOYEE users; SUPER_ADMIN can delete GENERAL_ADMIN or EMPLOYEE
+  if (requestorRole === 'GENERAL_ADMIN' && targetUser.role !== 'EMPLOYEE') {
+    return c.json({ error: 'Forbidden: General Admins can only delete Employee accounts' }, 403);
+  }
+
   if (targetId === requestorId) return c.json({ error: 'Self-deletion is not permitted' }, 400);
 
   await supabase.from('Employee').delete().eq('user_id', targetId);
@@ -313,7 +341,7 @@ admin.delete('/users/:id', requireRole(['SUPER_ADMIN']), async (c) => {
 
   if (deleteError) return c.json({ error: deleteError.message }, 500);
 
-  await SystemLogger.logAction(requestorId, 'SUPER_ADMIN', 'USER_DELETED', targetId, undefined, c.env);
+  await SystemLogger.logAction(requestorId, requestorRole, 'USER_DELETED', targetId, undefined, c.env);
   return c.json({ message: 'User deleted successfully from database' });
 });
 

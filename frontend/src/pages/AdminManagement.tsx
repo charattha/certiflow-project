@@ -80,10 +80,11 @@ export default function AdminManagement() {
 
     try {
       if (editingId) {
-        await api.patch(`/api/admin/users/${editingId}`, formData, {
+        const patchRes = await api.patch(`/api/admin/users/${editingId}`, formData, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setStatus({ type: 'success', message: 'User updated successfully' });
+        const savedRole = patchRes.data?.role;
+        setStatus({ type: 'success', message: `User updated successfully${savedRole ? ` · Role: ${savedRole}` : ''}` });
       } else {
         const response = await api.post('/api/admin/users', formData, {
           headers: { Authorization: `Bearer ${token}` }
@@ -229,23 +230,25 @@ export default function AdminManagement() {
             
             <form onSubmit={handleCreateOrUpdateUser} className="p-6 overflow-y-auto space-y-5">
               {/* Account */}
-              <div className="grid grid-cols-3 gap-5">
-                <div className="col-span-2 space-y-1.5">
+              <div className={`grid gap-5 ${user?.role === 'SUPER_ADMIN' ? 'grid-cols-3' : 'grid-cols-1'}`}>
+                <div className={user?.role === 'SUPER_ADMIN' ? 'col-span-2 space-y-1.5' : 'space-y-1.5'}>
                   <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">Email Address *</label>
                   <input type="email" required value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})}
                     className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none" placeholder="john@example.com" />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">System Role</label>
-                  <div className="relative">
-                    <select value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}
-                      className="w-full appearance-none bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 pr-10 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
-                      <option value="EMPLOYEE">Employee</option>
-                      <option value="GENERAL_ADMIN">General Admin</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400 pointer-events-none" />
+                {user?.role === 'SUPER_ADMIN' && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-stone-400 uppercase tracking-wider">System Role</label>
+                    <div className="relative">
+                      <select value={formData.role} onChange={(e) => { const v = e.target.value; setFormData(prev => ({...prev, role: v})); }}
+                        className="w-full appearance-none bg-[#1c1c1c] border border-white/10 rounded-lg px-4 py-2.5 pr-10 text-white focus:ring-1 focus:ring-brand-red outline-none [&>option]:bg-[#1c1c1c]">
+                        <option value="EMPLOYEE">Employee</option>
+                        <option value="GENERAL_ADMIN">General Admin</option>
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400 pointer-events-none" />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Prefix | Gender */}
@@ -426,7 +429,8 @@ export default function AdminManagement() {
                             >
                               Reset PW
                             </button>
-                            {user?.role === 'SUPER_ADMIN' && u.role !== 'SUPER_ADMIN' && (
+                            {((user?.role === 'SUPER_ADMIN' && u.role !== 'SUPER_ADMIN') ||
+                              (user?.role === 'GENERAL_ADMIN' && u.role === 'EMPLOYEE')) && (
                               <>
                                 <button
                                   onClick={() => handleOpenEdit(u)}

@@ -24,11 +24,11 @@ function AppRoutes() {
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
       
       <Route element={<RootLayout />}>
-        {/* Employee dashboard — redirect admins to /admin */}
+        {/* Employee dashboard — redirect pure admins (no employee record) to /admin */}
         <Route
           path="/dashboard"
           element={
-            user && (user.role === 'SUPER_ADMIN' || user.role === 'GENERAL_ADMIN')
+            user && (user.role === 'SUPER_ADMIN' || (user.role === 'GENERAL_ADMIN' && !user.employeeId))
               ? <Navigate to="/admin" replace />
               : <EmployeeDashboard />
           }

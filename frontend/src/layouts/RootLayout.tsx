@@ -178,7 +178,8 @@ export default function RootLayout() {
             Menu
           </div>
           
-          {!isAdmin && (
+          {/* My Documents — visible to employees and admins who also have an employee profile */}
+          {(!isAdmin || user.employeeId) && (
             <button
               onClick={() => {
                 navigate('/dashboard');
@@ -195,15 +196,16 @@ export default function RootLayout() {
             </button>
           )}
 
+          {/* Management — admins only */}
           {isAdmin && (
-            <button 
+            <button
               onClick={() => {
                 navigate('/admin');
                 setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                window.location.pathname === '/admin' 
-                  ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]' 
+                window.location.pathname === '/admin'
+                  ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]'
                   : 'text-stone-400 hover:bg-white/5 hover:text-white'
               }`}
             >

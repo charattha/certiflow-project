@@ -18,6 +18,8 @@ function pronouns(prefix: string): { subj: string; obj: string; poss: string } {
   return { subj: 'he', obj: 'him', poss: 'his' };
 }
 
+type Para = { text: string; size?: number; center?: boolean } | null;
+
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
   const words = text.split(' ');
   const lines: string[] = [];
@@ -44,16 +46,21 @@ function drawParagraph(
   font: PDFFont,
   maxWidth: number,
   lineSpacing = 1.55,
+  center = false,
+  pageWidth = 595.28,
 ): number {
   const lh = size * lineSpacing;
   for (const line of wrapText(text, font, size, maxWidth)) {
-    page.drawText(line, { x, y, size, font, color: rgb(0, 0, 0) });
+    const drawX = center
+      ? (pageWidth - font.widthOfTextAtSize(line, size)) / 2
+      : x;
+    page.drawText(line, { x: drawX, y, size, font, color: rgb(0, 0, 0) });
     y -= lh;
   }
   return y;
 }
 
-async function buildPDF(paragraphs: Array<string | null>): Promise<Uint8Array> {
+async function buildPDF(paragraphs: Array<Para>): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   pdfDoc.registerFontkit(fontkit);
   const font = await pdfDoc.embedFont(sarabunFontData as ArrayBuffer);
@@ -70,8 +77,10 @@ async function buildPDF(paragraphs: Array<string | null>): Promise<Uint8Array> {
     if (!para) {
       y -= fs * 1.4;
     } else {
-      y = drawParagraph(page, para, mx, y, fs, font, maxWidth);
-      y -= gap;
+      const size = para.size ?? fs;
+      const lineGap = size * 0.9;
+      y = drawParagraph(page, para.text, mx, y, size, font, maxWidth, 1.55, para.center ?? false, width);
+      y -= lineGap;
     }
   }
 
@@ -80,7 +89,7 @@ async function buildPDF(paragraphs: Array<string | null>): Promise<Uint8Array> {
 
 // ---------- per-doc builders ----------
 
-function buildSalaryCertParagraphs(data: Record<string, string>): Array<string | null> {
+function buildSalaryCertParagraphs(data: Record<string, string>): Array<Para> {
   const p = pronouns(data.prefix ?? '');
 
   const hasSalary = !!data.salary;
@@ -95,66 +104,72 @@ function buildSalaryCertParagraphs(data: Record<string, string>): Array<string |
   }
 
   return [
-    data.date_now,
+    { text: 'SALARY CERTIFICATE', size: 15, center: true },
     null,
-    'To Whom It May Concern',
+    { text: data.date_now },
     null,
-    `This is to certify that ${data.prefix} ${data.first_name} ${data.last_name} has been employed by TCC Hotel Asset Management Company Limited as the company managing Bangkok Marriott Marquis Queen's Park since ${data.employment_date} to present in the position of ${data.position} in the ${data.department} Department.`,
+    { text: 'To Whom It May Concern' },
     null,
-    ...(incomeStatement ? [incomeStatement, null] : []),
-    `During ${p.poss} stay, any assistance extended to ${p.obj} would be greatly appreciated. Should you require any further information, please feel free to contact me.`,
+    { text: `This is to certify that ${data.prefix} ${data.first_name} ${data.last_name} has been employed by TCC Hotel Asset Management Company Limited as the company managing Bangkok Marriott Marquis Queen's Park since ${data.employment_date} to present in the position of ${data.position} in the ${data.department} Department.` },
     null,
-    'Sincerely yours,',
+    ...(incomeStatement ? [{ text: incomeStatement }, null] : []),
+    { text: `During ${p.poss} stay, any assistance extended to ${p.obj} would be greatly appreciated. Should you require any further information, please feel free to contact me.` },
+    null,
+    { text: 'Sincerely yours,' },
     null,
     null,
     null,
-    'Preechayaporn Poungponprom',
-    'Assistant Director of Human Resources',
-    "Bangkok Marriott Marquis Queen's Park",
+    { text: 'Preechayaporn Poungponprom' },
+    { text: 'Assistant Director of Human Resources' },
+    { text: "Bangkok Marriott Marquis Queen's Park" },
   ];
 }
 
-function buildEmpCertParagraphs(data: Record<string, string>): Array<string | null> {
+function buildEmpCertParagraphs(data: Record<string, string>): Array<Para> {
   const p = pronouns(data.prefix ?? '');
   return [
-    data.date_now,
+    { text: 'EMPLOYMENT CERTIFICATE', size: 15, center: true },
     null,
-    'To Whom It May Concern',
+    { text: data.date_now },
     null,
-    `This is to certify that ${data.prefix}. ${data.first_name} ${data.last_name} has been employed by Bangkok Marriott Marquis Queen's Park since ${data.employment_date} to ${data.last_working_date} in the position of ${data.position} in the ${data.department} Department.`,
+    { text: 'To Whom It May Concern' },
     null,
-    `${data.prefix} ${data.last_name} resigned on ${p.poss} own accord and we wish every success in ${p.poss} future endeavor. We wish to express our appreciation for ${p.poss} contribution during the employment with us and our best wishes are accompanying ${p.obj} for the future career.`,
+    { text: `This is to certify that ${data.prefix}. ${data.first_name} ${data.last_name} has been employed by Bangkok Marriott Marquis Queen's Park since ${data.employment_date} to ${data.last_working_date} in the position of ${data.position} in the ${data.department} Department.` },
     null,
-    'Sincerely yours,',
+    { text: `${data.prefix} ${data.last_name} resigned on ${p.poss} own accord and we wish every success in ${p.poss} future endeavor. We wish to express our appreciation for ${p.poss} contribution during the employment with us and our best wishes are accompanying ${p.obj} for the future career.` },
+    null,
+    { text: 'Sincerely yours,' },
     null,
     null,
     null,
-    'Preechayaporn Poungponprom',
-    'Assistant Director of Human Resources',
-    "Bangkok Marriott Marquis Queen's Park",
+    { text: 'Preechayaporn Poungponprom' },
+    { text: 'Assistant Director of Human Resources' },
+    { text: "Bangkok Marriott Marquis Queen's Park" },
   ];
 }
 
-function buildVisaParagraphs(data: Record<string, string>): Array<string | null> {
+function buildVisaParagraphs(data: Record<string, string>): Array<Para> {
   const p = pronouns(data.prefix ?? '');
   return [
-    data.date_now,
+    { text: 'VISA APPLICATION LETTER', size: 15, center: true },
     null,
-    'To Whom It May Concern',
+    { text: data.date_now },
     null,
-    `This is to certify that ${data.prefix}. ${data.first_name} ${data.last_name} has been employed by TCC Hotel Asset Management Company Limited as the company managing Bangkok Marriott Marquis Queen's Park since July 1, 2022 to present in the position of ${data.position} in the ${data.department} Department. ${p.poss.charAt(0).toUpperCase() + p.poss.slice(1)} current salary is THB ${data.salary} and service charge as of ${data.svc_monthly} is THB ${data.total_svc}.`,
+    { text: 'To Whom It May Concern' },
     null,
-    `${data.prefix}. ${data.first_name} ${data.last_name} has entitled to take the vacation for traveling to ${data.country} on ${data.departure_date} to ${data.last_travel_date} and ${data.prefix} will arrive to Thailand on ${data.arrival_date}. After that, ${data.prefix} will continue ${p.poss} duty on ${data.first_date_on_duty_date}.`,
+    { text: `This is to certify that ${data.prefix}. ${data.first_name} ${data.last_name} has been employed by TCC Hotel Asset Management Company Limited as the company managing Bangkok Marriott Marquis Queen's Park since July 1, 2022 to present in the position of ${data.position} in the ${data.department} Department. ${p.poss.charAt(0).toUpperCase() + p.poss.slice(1)} current salary is THB ${data.salary} and service charge as of ${data.svc_monthly} is THB ${data.total_svc}.` },
     null,
-    'I hereby certify that the above mentioned are true and correct. Should you require any further information, please feel free to contact me.',
+    { text: `${data.prefix}. ${data.first_name} ${data.last_name} has entitled to take the vacation for traveling to ${data.country} on ${data.departure_date} to ${data.last_travel_date} and ${data.prefix} will arrive to Thailand on ${data.arrival_date}. After that, ${data.prefix} will continue ${p.poss} duty on ${data.first_date_on_duty_date}.` },
     null,
-    'Sincerely yours,',
+    { text: 'I hereby certify that the above mentioned are true and correct. Should you require any further information, please feel free to contact me.' },
+    null,
+    { text: 'Sincerely yours,' },
     null,
     null,
     null,
-    'Preechayaporn Poungponprom',
-    'Assistant Director of Human Resources',
-    "Bangkok Marriott Marquis Queen's Park",
+    { text: 'Preechayaporn Poungponprom' },
+    { text: 'Assistant Director of Human Resources' },
+    { text: "Bangkok Marriott Marquis Queen's Park" },
   ];
 }
 
