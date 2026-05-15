@@ -81,23 +81,36 @@ async function buildPDF(paragraphs: Array<string | null>): Promise<Uint8Array> {
 // ---------- per-doc builders ----------
 
 function buildSalaryCertParagraphs(data: Record<string, string>): Array<string | null> {
-  const p = pronouns(data.prefix ?? '');
+  const p = pronouns(data.prefix ?? ‘’);
+
+  const hasSalary = !!data.salary;
+  const hasSvc = !!data.svc_monthly;
+
+  // Salary breakdown line
+  let incomeStatement = ‘’;
+  if (hasSalary && hasSvc) {
+    incomeStatement = `${p.poss.charAt(0).toUpperCase() + p.poss.slice(1)} current monthly remuneration consists of a base salary of THB ${data.salary} and a service charge of THB ${data.svc_monthly} (as of ${data.svc_period}), totalling THB ${data.total_income} per month.`;
+  } else if (hasSalary) {
+    incomeStatement = `${p.poss.charAt(0).toUpperCase() + p.poss.slice(1)} current monthly base salary is THB ${data.salary}.`;
+  }
+
   return [
     data.date_now,
     null,
-    'To Whom It May Concern',
+    ‘To Whom It May Concern’,
     null,
-    `This is to certify that ${data.prefix}. ${data.first_name} ${data.last_name} has been employed by TCC Hotel Asset Management Company Limited as the company managing Bangkok Marriott Marquis Queen’s Park since ${data.employment_date} to present in the position of ${data.position} in the ${data.department} Department.`,
+    `This is to certify that ${data.prefix} ${data.first_name} ${data.last_name} has been employed by TCC Hotel Asset Management Company Limited as the company managing Bangkok Marriott Marquis Queen’s Park since ${data.employment_date} to present in the position of ${data.position} in the ${data.department} Department.`,
     null,
+    ...(incomeStatement ? [incomeStatement, null] : []),
     `During ${p.poss} stay, any assistance extended to ${p.obj} would be greatly appreciated. Should you require any further information, please feel free to contact me.`,
     null,
-    'Sincerely yours,',
+    ‘Sincerely yours,’,
     null,
     null,
     null,
-    'Preechayaporn Poungponprom',
-    'Assistant Director of Human Resources',
-    'Bangkok Marriott Marquis Queen’s Park',
+    ‘Preechayaporn Poungponprom’,
+    ‘Assistant Director of Human Resources’,
+    ‘Bangkok Marriott Marquis Queen’s Park’,
   ];
 }
 
@@ -153,7 +166,16 @@ function resolvePrefix(employee: any, tf: Record<string, string> | null): string
   return raw.replace(/_/g, '.');
 }
 
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function formatServiceChargePeriod(sc: any): string {
+  if (!sc) return '';
+  return `${MONTH_NAMES[(sc.month ?? 1) - 1]} ${sc.year}`;
+}
+
 async function buildSalaryCertData(employee: any, serviceCharge: any, tf: Record<string, string> | null): Promise<Record<string, string>> {
+  const baseSalary = Number(employee.salary ?? 0);
+  const svcAmount = Number(serviceCharge?.amount ?? 0);
   return {
     date_now: formatDate(new Date()),
     prefix: resolvePrefix(employee, tf),
@@ -162,9 +184,10 @@ async function buildSalaryCertData(employee: any, serviceCharge: any, tf: Record
     employment_date: tf?.employment_date ? formatDate(new Date(tf.employment_date)) : formatDate(employee.employment_date),
     position: employee.position ?? '',
     department: employee.department ?? '',
-    salary: employee.salary ? Number(employee.salary).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
-    svc_monthly: serviceCharge ? Number(serviceCharge.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
-    total_svc: (Number(employee.salary ?? 0) + Number(serviceCharge?.amount ?? 0)).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+    salary: baseSalary ? baseSalary.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
+    svc_monthly: svcAmount ? svcAmount.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
+    svc_period: formatServiceChargePeriod(serviceCharge),
+    total_income: (baseSalary + svcAmount).toLocaleString('en-US', { minimumFractionDigits: 2 }),
   };
 }
 
@@ -182,6 +205,8 @@ async function buildEmpCertData(employee: any, tf: Record<string, string> | null
 }
 
 async function buildVisaData(employee: any, serviceCharge: any, request: any): Promise<Record<string, string>> {
+  const baseSalary = Number(employee.salary ?? 0);
+  const svcAmount = Number(serviceCharge?.amount ?? 0);
   return {
     date_now: formatDate(request.created_at),
     prefix: employee.prefix?.replace(/_/g, '.') ?? '',
@@ -189,9 +214,9 @@ async function buildVisaData(employee: any, serviceCharge: any, request: any): P
     last_name: employee.last_name ?? '',
     position: employee.position ?? '',
     department: employee.department ?? '',
-    salary: employee.salary ? Number(employee.salary).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
-    svc_monthly: serviceCharge ? Number(serviceCharge.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
-    total_svc: (Number(employee.salary ?? 0) + Number(serviceCharge?.amount ?? 0)).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+    salary: baseSalary ? baseSalary.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
+    svc_monthly: svcAmount ? svcAmount.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '',
+    total_svc: (baseSalary + svcAmount).toLocaleString('en-US', { minimumFractionDigits: 2 }),
     country: request.country_prefer_travel ?? '',
     departure_date: formatDate(request.departure_date),
     last_travel_date: formatDate(request.last_travel_date),
@@ -225,15 +250,16 @@ export async function generateDocument(requestId: string, env: any): Promise<voi
     return;
   }
 
+  // Fetch most recent service charge for this employee (latest year+month first)
   let serviceCharge = null;
   if (request.doc_type === 'salary_cert' || request.doc_type === 'visa_letter') {
-    const now = new Date();
     const { data: sc } = await supabase
       .from('ServiceCharge')
       .select('*')
       .eq('employee_id', employee.id)
-      .eq('month', now.getMonth() + 1)
-      .eq('year', now.getFullYear())
+      .order('year', { ascending: false })
+      .order('month', { ascending: false })
+      .limit(1)
       .maybeSingle();
     serviceCharge = sc;
   }
@@ -276,6 +302,7 @@ export async function generateDocument(requestId: string, env: any): Promise<voi
     status: 'COMPLETED',
     file_url: signedData?.signedUrl ?? null,
     expires_at: expiresAt.toISOString(),
+    service_charge_id: serviceCharge?.id ?? null,
     updated_at: new Date().toISOString(),
   }).eq('id', requestId);
 }
