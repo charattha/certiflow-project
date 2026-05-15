@@ -77,7 +77,6 @@ const fetchCharges = async () => {
         total_pool: parseFloat(distributeForm.total_pool),
       }, { headers: { Authorization: `Bearer ${token}` } });
 
-      setStatus({ type: 'success', message: res.data.message });
       setIsDistributeOpen(false);
       setDistributeForm({ month: new Date().getMonth() + 1, year: currentYear, total_pool: '' });
       fetchCharges();
