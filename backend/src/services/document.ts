@@ -110,7 +110,7 @@ function buildSalaryCertParagraphs(data: Record<string, string>): Array<string |
     null,
     'Preechayaporn Poungponprom',
     'Assistant Director of Human Resources',
-    'Bangkok Marriott Marquis Queen's Park',
+    "Bangkok Marriott Marquis Queen's Park",
   ];
 }
 
@@ -131,7 +131,7 @@ function buildEmpCertParagraphs(data: Record<string, string>): Array<string | nu
     null,
     'Preechayaporn Poungponprom',
     'Assistant Director of Human Resources',
-    'Bangkok Marriott Marquis Queen's Park',
+    "Bangkok Marriott Marquis Queen's Park",
   ];
 }
 
@@ -154,7 +154,7 @@ function buildVisaParagraphs(data: Record<string, string>): Array<string | null>
     null,
     'Preechayaporn Poungponprom',
     'Assistant Director of Human Resources',
-    'Bangkok Marriott Marquis Queen's Park',
+    "Bangkok Marriott Marquis Queen's Park",
   ];
 }
 
