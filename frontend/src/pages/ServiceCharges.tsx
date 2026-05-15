@@ -71,7 +71,7 @@ const fetchCharges = async () => {
     setIsDistributing(true);
     setStatus(null);
     try {
-      const res = await api.post('/api/admin/service-charges/distribute', {
+      await api.post('/api/admin/service-charges/distribute', {
         month: Number(distributeForm.month),
         year: Number(distributeForm.year),
         total_pool: parseFloat(distributeForm.total_pool),
