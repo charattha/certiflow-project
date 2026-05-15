@@ -81,13 +81,13 @@ async function buildPDF(paragraphs: Array<string | null>): Promise<Uint8Array> {
 // ---------- per-doc builders ----------
 
 function buildSalaryCertParagraphs(data: Record<string, string>): Array<string | null> {
-  const p = pronouns(data.prefix ?? ‘’);
+  const p = pronouns(data.prefix ?? '');
 
   const hasSalary = !!data.salary;
   const hasSvc = !!data.svc_monthly;
 
   // Salary breakdown line
-  let incomeStatement = ‘’;
+  let incomeStatement = '';
   if (hasSalary && hasSvc) {
     incomeStatement = `${p.poss.charAt(0).toUpperCase() + p.poss.slice(1)} current monthly remuneration consists of a base salary of THB ${data.salary} and a service charge of THB ${data.svc_monthly} (as of ${data.svc_period}), totalling THB ${data.total_income} per month.`;
   } else if (hasSalary) {
@@ -97,20 +97,20 @@ function buildSalaryCertParagraphs(data: Record<string, string>): Array<string |
   return [
     data.date_now,
     null,
-    ‘To Whom It May Concern’,
+    'To Whom It May Concern',
     null,
-    `This is to certify that ${data.prefix} ${data.first_name} ${data.last_name} has been employed by TCC Hotel Asset Management Company Limited as the company managing Bangkok Marriott Marquis Queen’s Park since ${data.employment_date} to present in the position of ${data.position} in the ${data.department} Department.`,
+    `This is to certify that ${data.prefix} ${data.first_name} ${data.last_name} has been employed by TCC Hotel Asset Management Company Limited as the company managing Bangkok Marriott Marquis Queen's Park since ${data.employment_date} to present in the position of ${data.position} in the ${data.department} Department.`,
     null,
     ...(incomeStatement ? [incomeStatement, null] : []),
     `During ${p.poss} stay, any assistance extended to ${p.obj} would be greatly appreciated. Should you require any further information, please feel free to contact me.`,
     null,
-    ‘Sincerely yours,’,
+    'Sincerely yours,',
     null,
     null,
     null,
-    ‘Preechayaporn Poungponprom’,
-    ‘Assistant Director of Human Resources’,
-    ‘Bangkok Marriott Marquis Queen’s Park’,
+    'Preechayaporn Poungponprom',
+    'Assistant Director of Human Resources',
+    'Bangkok Marriott Marquis Queen's Park',
   ];
 }
 
@@ -121,7 +121,7 @@ function buildEmpCertParagraphs(data: Record<string, string>): Array<string | nu
     null,
     'To Whom It May Concern',
     null,
-    `This is to certify that ${data.prefix}. ${data.first_name} ${data.last_name} has been employed by Bangkok Marriott Marquis Queen’s Park since ${data.employment_date} to ${data.last_working_date} in the position of ${data.position} in the ${data.department} Department.`,
+    `This is to certify that ${data.prefix}. ${data.first_name} ${data.last_name} has been employed by Bangkok Marriott Marquis Queen's Park since ${data.employment_date} to ${data.last_working_date} in the position of ${data.position} in the ${data.department} Department.`,
     null,
     `${data.prefix} ${data.last_name} resigned on ${p.poss} own accord and we wish every success in ${p.poss} future endeavor. We wish to express our appreciation for ${p.poss} contribution during the employment with us and our best wishes are accompanying ${p.obj} for the future career.`,
     null,
@@ -131,7 +131,7 @@ function buildEmpCertParagraphs(data: Record<string, string>): Array<string | nu
     null,
     'Preechayaporn Poungponprom',
     'Assistant Director of Human Resources',
-    'Bangkok Marriott Marquis Queen’s Park',
+    'Bangkok Marriott Marquis Queen's Park',
   ];
 }
 
@@ -142,7 +142,7 @@ function buildVisaParagraphs(data: Record<string, string>): Array<string | null>
     null,
     'To Whom It May Concern',
     null,
-    `This is to certify that ${data.prefix}. ${data.first_name} ${data.last_name} has been employed by TCC Hotel Asset Management Company Limited as the company managing Bangkok Marriott Marquis Queen’s Park since July 1, 2022 to present in the position of ${data.position} in the ${data.department} Department. ${p.poss.charAt(0).toUpperCase() + p.poss.slice(1)} current salary is THB ${data.salary} and service charge as of ${data.svc_monthly} is THB ${data.total_svc}.`,
+    `This is to certify that ${data.prefix}. ${data.first_name} ${data.last_name} has been employed by TCC Hotel Asset Management Company Limited as the company managing Bangkok Marriott Marquis Queen's Park since July 1, 2022 to present in the position of ${data.position} in the ${data.department} Department. ${p.poss.charAt(0).toUpperCase() + p.poss.slice(1)} current salary is THB ${data.salary} and service charge as of ${data.svc_monthly} is THB ${data.total_svc}.`,
     null,
     `${data.prefix}. ${data.first_name} ${data.last_name} has entitled to take the vacation for traveling to ${data.country} on ${data.departure_date} to ${data.last_travel_date} and ${data.prefix} will arrive to Thailand on ${data.arrival_date}. After that, ${data.prefix} will continue ${p.poss} duty on ${data.first_date_on_duty_date}.`,
     null,
@@ -154,7 +154,7 @@ function buildVisaParagraphs(data: Record<string, string>): Array<string | null>
     null,
     'Preechayaporn Poungponprom',
     'Assistant Director of Human Resources',
-    'Bangkok Marriott Marquis Queen’s Park',
+    'Bangkok Marriott Marquis Queen's Park',
   ];
 }
 
