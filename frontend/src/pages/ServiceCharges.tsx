@@ -28,7 +28,6 @@ export default function ServiceCharges() {
     year: currentYear,
     total_pool: '',
   });
-  const [preview, setPreview] = useState<{ per: number; count: number } | null>(null);
   const [employeeCount, setEmployeeCount] = useState(0);
 
   // Edit modal
@@ -40,17 +39,7 @@ export default function ServiceCharges() {
 
   useEffect(() => { fetchCharges(); fetchEmployeeCount(); }, [token]);
 
-  // Live preview when amount changes
-  useEffect(() => {
-    const amount = parseFloat(distributeForm.total_pool);
-    if (!isNaN(amount) && amount > 0 && employeeCount > 0) {
-      setPreview({ per: amount, count: employeeCount });
-    } else {
-      setPreview(null);
-    }
-  }, [distributeForm.total_pool, employeeCount]);
-
-  const fetchCharges = async () => {
+const fetchCharges = async () => {
     setIsLoading(true);
     try {
       const res = await api.get('/api/admin/service-charges', {
@@ -192,28 +181,8 @@ export default function ServiceCharges() {
               </div>
 
               {/* Live preview */}
-              {preview && (
-                <div className="bg-brand-red/10 border border-brand-red/20 rounded-xl p-4 space-y-2">
-                  <p className="text-xs text-stone-400 uppercase tracking-wider font-semibold">Preview</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-stone-300 text-sm">Each employee receives</span>
-                    <span className="text-brand-red font-bold text-lg">
-                      ฿{preview.per.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-stone-300 text-sm">Total across {preview.count} employees</span>
-                    <span className="text-white font-semibold">
-                      ฿{(preview.per * preview.count).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <p className="text-xs text-stone-500 pt-1">
-                    ⚠ Existing records for {MONTHS[distributeForm.month - 1]} {distributeForm.year} will be replaced.
-                  </p>
-                </div>
-              )}
 
-              <div className="flex gap-3 pt-1">
+<div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setIsDistributeOpen(false)}
                   className="flex-1 bg-white/5 text-white py-2.5 rounded-lg font-semibold hover:bg-white/10 transition-all border border-white/10">
                   Cancel
