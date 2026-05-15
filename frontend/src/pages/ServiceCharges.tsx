@@ -66,7 +66,14 @@ export default function ServiceCharges() {
       const res = await api.get('/api/admin/users?role=EMPLOYEE', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setEmployeeCount(res.data.length);
+      // Filter out resigned employees (no resignation_date or future date)
+      const active = res.data.filter((u: any) => {
+        const emp = Array.isArray(u.Employee) ? u.Employee[0] : u.Employee;
+        if (!emp) return false;
+        if (!emp.resignation_date) return true;
+        return new Date(emp.resignation_date) > new Date();
+      });
+      setEmployeeCount(active.length);
     } catch (e) { console.error(e); }
   };
 
@@ -209,7 +216,7 @@ export default function ServiceCharges() {
                   className="flex-1 bg-white/5 text-white py-2.5 rounded-lg font-semibold hover:bg-white/10 transition-all border border-white/10">
                   Cancel
                 </button>
-                <button type="submit" disabled={isDistributing || !preview}
+                <button type="submit" disabled={isDistributing}
                   className="flex-[2] bg-brand-red text-white py-2.5 rounded-lg font-semibold hover:bg-[#8A0524] transition-all disabled:opacity-50 flex items-center justify-center gap-2">
                   {isDistributing
                     ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
