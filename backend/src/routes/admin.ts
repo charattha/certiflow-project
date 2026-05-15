@@ -499,6 +499,64 @@ admin.patch('/service-charges/:id', async (c) => {
   return c.json(data);
 });
 
+// POST distribute total pool evenly across all active employees
+admin.post('/service-charges/distribute', async (c) => {
+  const user = c.get('user');
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const body = await c.req.json();
+  const month = Number(body.month);
+  const year = Number(body.year);
+  const totalPool = parseFloat(String(body.total_pool));
+
+  if (!month || !year || isNaN(totalPool) || totalPool <= 0) {
+    return c.json({ error: 'Invalid payload: month, year, total_pool required' }, 400);
+  }
+
+  // Fetch all active employees (not resigned)
+  const { data: employees, error: empErr } = await supabase
+    .from('Employee')
+    .select('id')
+    .or('resignation_date.is.null,resignation_date.gt.' + new Date().toISOString());
+
+  if (empErr) return c.json({ error: empErr.message }, 500);
+  if (!employees || employees.length === 0) return c.json({ error: 'No active employees found' }, 400);
+
+  const perEmployee = Math.round((totalPool / employees.length) * 100) / 100;
+
+  // Upsert — overwrite if same employee+month+year already exists
+  const rows = employees.map((emp: any) => ({
+    id: crypto.randomUUID(),
+    employee_id: emp.id,
+    month,
+    year,
+    amount: perEmployee,
+    updated_at: new Date().toISOString(),
+  }));
+
+  // Delete existing records for this month/year first, then insert fresh
+  await supabase
+    .from('ServiceCharge')
+    .delete()
+    .eq('month', month)
+    .eq('year', year);
+
+  const { error: insertErr } = await supabase.from('ServiceCharge').insert(rows);
+  if (insertErr) return c.json({ error: insertErr.message }, 500);
+
+  await SystemLogger.logAction(user.userId, user.role, 'SERVICE_CHARGE_DISTRIBUTED', undefined, {
+    month, year, total_pool: totalPool, per_employee: perEmployee, employee_count: employees.length,
+  }, c.env);
+
+  return c.json({
+    message: `Distributed THB ${totalPool.toLocaleString()} across ${employees.length} employees`,
+    per_employee: perEmployee,
+    employee_count: employees.length,
+    month,
+    year,
+  });
+});
+
 // DELETE service charge
 admin.delete('/service-charges/:id', async (c) => {
   const id = c.req.param('id');
