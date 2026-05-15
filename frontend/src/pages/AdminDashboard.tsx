@@ -89,7 +89,7 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab('billing')}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all flex-1 md:flex-none justify-center ${activeTab === 'billing' ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]' : 'bg-white/5 text-stone-400 hover:bg-white/10'}`}
             >
-              <Receipt className="h-4 w-4" /> Billing
+              <Receipt className="h-4 w-4" /> SVC
             </button>
           </div>
         </div>
