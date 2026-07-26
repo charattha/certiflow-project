@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { RefreshCw, PlayCircle, Loader2, CheckCircle, Clock, Users, FileText } from "lucide-react";
+import { RefreshCw, PlayCircle, Loader2 } from "lucide-react";
 import AdminManagement from "./AdminManagement";
 
 export default function AdminDashboard() {
@@ -46,93 +46,131 @@ export default function AdminDashboard() {
     }
   };
 
+  const pendingCount = requests.filter((r) => r.status === 'PENDING').length;
+  const completedCount = requests.filter((r) => r.status === 'COMPLETED').length;
+
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 md:space-y-8 font-sans">
-      
-      {/* Admin Header Card */}
-      <div className="bg-brand-surface rounded-2xl p-6 md:p-8 shadow-2xl text-white flex flex-col md:flex-row justify-between items-center relative overflow-hidden gap-4 border border-white/10">
-        <div className="relative z-10 w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold mb-1 text-white">Gatekeeper Management</h1>
-            <p className="font-light text-stone-300 text-sm md:text-base">Review, trigger, and manage all employee requests and system access.</p>
-          </div>
-          <div className="flex gap-2 w-full md:w-auto">
-            <button 
-              onClick={() => setActiveTab('requests')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all flex-1 md:flex-none justify-center ${activeTab === 'requests' ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]' : 'bg-white/5 text-stone-400 hover:bg-white/10'}`}
-            >
-              <FileText className="h-5 w-5" /> Requests
-            </button>
-            <button 
-              onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all flex-1 md:flex-none justify-center ${activeTab === 'users' ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]' : 'bg-white/5 text-stone-400 hover:bg-white/10'}`}
-            >
-              <Users className="h-5 w-5" /> Users
-            </button>
-          </div>
+    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 font-data text-ink">
+
+      {/* Page title + Track rail */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+          <h1 className="font-ledger text-[clamp(1.6rem,3vw,2.2rem)] font-medium text-ink leading-tight">Role Center</h1>
+          <p className="text-ink-soft text-sm mt-1">Review, trigger, and manage employee requests and system access.</p>
         </div>
-        <div className="absolute top-1/2 right-1/4 w-48 h-48 bg-brand-red opacity-10 rounded-full blur-3xl -translate-y-1/2"></div>
+        <div className="flex gap-8 border-b border-rule">
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`relative pb-2 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] transition-colors ${
+              activeTab === 'requests' ? 'text-ink' : 'text-ink-soft/60 hover:text-ink-soft'
+            }`}
+          >
+            Requests
+            {activeTab === 'requests' && <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-brass" />}
+          </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`relative pb-2 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] transition-colors ${
+              activeTab === 'users' ? 'text-ink' : 'text-ink-soft/60 hover:text-ink-soft'
+            }`}
+          >
+            Users
+            {activeTab === 'users' && <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-brass" />}
+          </button>
+        </div>
       </div>
 
       {activeTab === 'requests' ? (
         <div className="space-y-6">
+
+          {/* Balance strip — collapses to a 2x2-style block below ~720px */}
+          <div className="bg-sheet shadow-sheet border border-rule grid grid-cols-2 md:flex">
+            <div className="px-6 py-4 border-r border-b md:border-b-0 border-rule">
+              <p className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">Total Requests</p>
+              <p className="font-ledger text-[clamp(1.9rem,4vw,2.6rem)] font-semibold text-ink leading-none mt-1.5">{requests.length}</p>
+            </div>
+            <div className="px-6 py-4 border-b md:border-b-0 md:border-r border-rule">
+              <p className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">Pending</p>
+              <p className="font-ledger text-[clamp(1.9rem,4vw,2.6rem)] font-semibold text-ink leading-none mt-1.5 flex items-center gap-2">
+                {pendingCount}
+                {pendingCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-status-pending inline-block" />}
+              </p>
+            </div>
+            <div className="px-6 py-4 col-span-2 md:col-span-1">
+              <p className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">Completed</p>
+              <p className="font-ledger text-[clamp(1.9rem,4vw,2.6rem)] font-semibold text-ink leading-none mt-1.5 flex items-center gap-2">
+                {completedCount}
+                {completedCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-status-approved inline-block" />}
+              </p>
+            </div>
+          </div>
+
           <div className="flex justify-end">
-            <button 
+            <button
               onClick={fetchRequests}
-              className="flex items-center gap-2 bg-white/5 text-white px-4 py-2 rounded-lg font-medium border border-white/10 hover:bg-white/10 transition-all active:scale-[0.98]"
+              className="flex items-center gap-2 text-ink-soft hover:text-ink border border-rule px-4 py-2 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] transition-colors"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /> Refresh Requests
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
             </button>
           </div>
-          
-          <div className="bg-brand-surface rounded-xl shadow-2xl border border-white/10 overflow-hidden">
-            <div className="p-0 overflow-x-auto">
+
+          {/* Register */}
+          <div className="bg-sheet shadow-sheet border border-rule overflow-hidden">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-sm whitespace-nowrap">
-                <thead className="bg-[#211E1F] text-stone-400 border-b border-white/10">
+                <thead className="border-b-2 border-rule-strong">
                   <tr>
-                    <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs">Req ID</th>
-                    <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs">Employee</th>
-                    <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs">Doc Type</th>
-                    <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs">Status</th>
-                    <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs text-right">Actions</th>
+                    <th className="w-10 px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft text-right">#</th>
+                    <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">Req ID</th>
+                    <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">Employee</th>
+                    <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">Doc Type</th>
+                    <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">Status</th>
+                    <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/10 bg-brand-surface text-stone-200">
-                  {isLoading && <tr><td colSpan={5} className="p-8 text-center text-brand-red"><Loader2 className="h-8 w-8 animate-spin mx-auto" /></td></tr>}
-                  {!isLoading && requests.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-stone-500 font-medium">No active requests logged in the system.</td></tr>}
-                  
-                  {requests.map((req) => (
-                    <tr key={req.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-6 py-4 text-stone-400 font-mono text-xs">{req.requestId}</td>
-                      <td className="px-6 py-4">
-                        <p className="font-medium text-white">{req.employee?.firstName} {req.employee?.lastName}</p>
-                        <p className="text-xs text-stone-500 mt-0.5">{req.employee?.employeeId}</p>
+                <tbody>
+                  {isLoading && (
+                    <tr><td colSpan={6} className="p-8 text-center text-ink-soft"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></td></tr>
+                  )}
+                  {!isLoading && requests.length === 0 && (
+                    <tr><td colSpan={6} className="p-8 text-center text-ink-soft">No active requests logged in the register.</td></tr>
+                  )}
+
+                  {requests.map((req, i) => (
+                    <tr key={req.id} className={`border-b border-rule hover:bg-sheet-alt transition-colors ${i % 2 === 1 ? 'bg-sheet-alt' : ''}`}>
+                      <td className="px-4 py-3 text-ink-soft text-right text-xs">{i + 1}</td>
+                      <td className="px-4 py-3 text-ink-soft font-medium text-xs">{req.requestId}</td>
+                      <td className="px-4 py-3">
+                        <p className="font-ledger font-semibold text-ink">{req.employee?.firstName} {req.employee?.lastName}</p>
+                        <p className="text-xs text-ink-soft mt-0.5">{req.employee?.employeeId}</p>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="font-medium text-stone-200">{req.docType}</span>
-                        <span className="ml-2 bg-brand-red/20 text-brand-red border border-brand-red/30 px-2 py-0.5 rounded text-xs font-medium">{req.docLang}</span>
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-ink">{req.docType}</span>
+                        <span className="ml-2 px-1.5 py-0.5 border border-rule text-ink-soft text-[10px] font-semibold uppercase tracking-[0.05em]">{req.docLang}</span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         {req.status === "PENDING" ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-400 border border-orange-500/20">
-                            <Clock className="h-3.5 w-3.5" /> PENDING
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-status-pending" />
+                            <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-pending">Pending</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            <CheckCircle className="h-3.5 w-3.5" /> COMPLETED
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-status-approved" />
+                            <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-approved">Completed</span>
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => handleTrigger(req.id)}
                           disabled={triggeringId === req.id || req.status === 'COMPLETED'}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg font-medium shadow-sm hover:bg-white/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-white/5 active:scale-[0.98]"
+                          className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule text-ink-soft hover:text-brass hover:border-brass transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
                         >
                           {triggeringId === req.id ? (
-                            <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
+                            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating</>
                           ) : (
-                            <><PlayCircle className="h-4 w-4" /> Trigger/Reprint</>
+                            <><PlayCircle className="h-3.5 w-3.5" /> Trigger</>
                           )}
                         </button>
                       </td>
@@ -140,6 +178,55 @@ export default function AdminDashboard() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile: stacked ledger slips */}
+            <div className="md:hidden">
+              {isLoading && (
+                <div className="p-8 text-center text-ink-soft"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></div>
+              )}
+              {!isLoading && requests.length === 0 && (
+                <div className="p-8 text-center text-ink-soft">No active requests logged in the register.</div>
+              )}
+              {requests.map((req, i) => (
+                <div key={req.id} className={`px-4 py-3.5 border-b border-rule space-y-1.5 ${i % 2 === 1 ? 'bg-sheet-alt' : ''}`}>
+                  <div className="flex justify-between items-start gap-3">
+                    <div>
+                      <p className="font-ledger font-semibold text-ink">{req.employee?.firstName} {req.employee?.lastName}</p>
+                      <p className="text-xs text-ink-soft mt-0.5">{req.employee?.employeeId}</p>
+                    </div>
+                    <span className="text-ink-soft text-xs flex-shrink-0">{req.requestId}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-medium text-ink">{req.docType}</span>
+                    <span className="px-1.5 py-0.5 border border-rule text-ink-soft text-[10px] font-semibold uppercase tracking-[0.05em]">{req.docLang}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-0.5">
+                    {req.status === "PENDING" ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-status-pending" />
+                        <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-pending">Pending</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-status-approved" />
+                        <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-approved">Completed</span>
+                      </span>
+                    )}
+                    <button
+                      onClick={() => handleTrigger(req.id)}
+                      disabled={triggeringId === req.id || req.status === 'COMPLETED'}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule text-ink-soft hover:text-brass hover:border-brass transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
+                    >
+                      {triggeringId === req.id ? (
+                        <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating</>
+                      ) : (
+                        <><PlayCircle className="h-3.5 w-3.5" /> Trigger</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

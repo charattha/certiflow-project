@@ -7,12 +7,11 @@ import {
   Receipt,
   FileBadge,
   Plane,
-  Clock,
-  CheckCircle,
   Download,
   X,
   Loader2,
   ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────
@@ -59,6 +58,13 @@ const t = {
     btnCancel: "Cancel",
     btnConfirm: "Confirm",
   },
+};
+
+const reasonLabels: Record<string, { TH: string; EN: string }> = {
+  financial: { TH: "การเงิน / สินเชื่อ", EN: "Financial / Loan" },
+  visa: { TH: "ขอวีซ่า", EN: "Visa Application" },
+  education: { TH: "การศึกษา", EN: "Education" },
+  other: { TH: "อื่นๆ", EN: "Other" },
 };
 
 // ─────────────────────────────────────────────
@@ -208,6 +214,7 @@ export default function EmployeeDashboard() {
   };
 
   const pendingCount = history.filter((h) => h.status === "PENDING").length;
+  const completedCount = history.filter((h) => h.status === "COMPLETED").length;
   const activeFields = selectedDocId ? (TEMPLATE_FIELDS[selectedDocId] || []) : [];
   const hasExtraFields = activeFields.length > 0;
 
@@ -215,60 +222,84 @@ export default function EmployeeDashboard() {
   // Render
   // ─────────────────────────────────────────────
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 md:space-y-8 font-sans">
-      
-      {/* Modern Luxury Banner */}
-      <div className="bg-gradient-to-r from-brand-red to-[#8A0524] rounded-2xl p-6 md:p-8 shadow-xl relative overflow-hidden border border-brand-red/20">
-        <div className="relative z-10">
-          <h1 className="text-2xl md:text-3xl font-semibold mb-2 text-white">{text.bannerTitle}</h1>
-          <p className="text-white/80 font-light max-w-2xl text-sm md:text-base">{text.bannerDesc}</p>
-          
-          {pendingCount > 0 && (
-            <div className="mt-4 inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm text-white py-2 px-4 rounded-lg text-sm font-medium border border-white/20 shadow-sm">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {text.processing} {pendingCount} files
-            </div>
-          )}
+    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8 font-data text-ink">
+
+      {/* Page title + language rail */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div>
+          <h1 className="font-ledger text-[clamp(1.6rem,3vw,2.2rem)] font-medium text-ink leading-tight">
+            {text.bannerTitle}
+          </h1>
+          <p className="text-ink-soft text-sm max-w-2xl mt-1">{text.bannerDesc}</p>
         </div>
-        <div className="absolute -top-10 -right-10 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl"></div>
+        <div className="flex gap-6 border-b border-rule">
+          {(['TH', 'EN'] as const).map((lang) => (
+            <button
+              key={lang}
+              onClick={() => setAppLang(lang)}
+              className={`relative pb-2 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] transition-colors ${
+                appLang === lang ? 'text-ink' : 'text-ink-soft/60 hover:text-ink-soft'
+              }`}
+            >
+              {lang}
+              {appLang === lang && <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-brass" />}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Document Categories */}
-      <div className="space-y-8">
+      {/* Balance strip — 2x2 block below ~720px, single row above */}
+      <div className="bg-sheet shadow-sheet border border-rule grid grid-cols-2">
+        <div className="px-6 py-4 border-r border-rule">
+          <p className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.processing}</p>
+          <p className="font-ledger text-[clamp(1.9rem,4vw,2.6rem)] font-semibold text-ink leading-none mt-1.5 flex items-center gap-2">
+            {pendingCount}
+            {pendingCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-status-pending inline-block" />}
+          </p>
+        </div>
+        <div className="px-6 py-4">
+          <p className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.historyTitle}</p>
+          <p className="font-ledger text-[clamp(1.9rem,4vw,2.6rem)] font-semibold text-ink leading-none mt-1.5 flex items-center gap-2">
+            {completedCount}
+            {completedCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-status-approved inline-block" />}
+          </p>
+        </div>
+      </div>
+
+      {/* Document Categories — one Sheet, ruled rows, not cards */}
+      <div className="bg-sheet shadow-sheet border border-rule divide-y divide-rule">
         {documentCategories.map((category, idx) => (
-          <div key={idx} className="space-y-4">
-            <h2 className="text-xl font-medium text-white border-b border-white/10 pb-2">
-              {category.title[appLang as 'TH' | 'EN']}
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div key={idx}>
+            <div className="px-6 pt-5 pb-2">
+              <h2 className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft border-b border-rule-strong pb-2">
+                {category.title[appLang as 'TH' | 'EN']}
+              </h2>
+            </div>
+            <div className="divide-y divide-rule">
               {category.docIds.map((docId) => {
                 const doc = docsData[docId];
                 const Icon = doc.icon;
                 const fieldCount = TEMPLATE_FIELDS[docId]?.length || 0;
                 return (
-                  <div key={docId} className="bg-brand-surface rounded-xl border border-white/10 shadow-lg p-6 hover:-translate-y-1 hover:shadow-2xl transition-all flex flex-col h-full group">
-                    <div className="flex items-start gap-4 mb-4">
-                      <div className="p-3 rounded-lg bg-black/20 border border-white/5 group-hover:bg-brand-red/10 group-hover:border-brand-red/20 transition-colors">
-                        <Icon className="h-6 w-6 text-brand-red" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-medium text-white">{doc.name[appLang as 'TH' | 'EN']}</h3>
-                        {fieldCount > 0 && (
-                          <p className="text-xs text-stone-500 mt-1">
-                            {fieldCount} field{fieldCount > 1 ? 's' : ''} required
-                          </p>
-                        )}
-                      </div>
+                  <button
+                    key={docId}
+                    onClick={() => handleOpenModal(docId)}
+                    className="w-full flex items-center gap-4 px-6 py-4 hover:bg-sheet-alt transition-colors text-left group"
+                  >
+                    <Icon className="h-5 w-5 text-brass flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-ledger font-semibold text-ink">{doc.name[appLang as 'TH' | 'EN']}</p>
+                      {fieldCount > 0 && (
+                        <p className="text-xs text-ink-soft mt-0.5">
+                          {fieldCount} field{fieldCount > 1 ? 's' : ''} required
+                        </p>
+                      )}
                     </div>
-                    <div className="mt-auto pt-4">
-                      <button
-                        onClick={() => handleOpenModal(docId)}
-                        className="w-full py-2.5 px-4 bg-white/5 hover:bg-brand-red hover:text-white border border-transparent hover:border-brand-red font-medium rounded-lg transition-all text-stone-300"
-                      >
-                        {text.btnRequest}
-                      </button>
-                    </div>
-                  </div>
+                    <span className="hidden sm:inline text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-brass opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
+                      {text.btnRequest}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-ink-soft/50 flex-shrink-0" />
+                  </button>
                 );
               })}
             </div>
@@ -276,146 +307,199 @@ export default function EmployeeDashboard() {
         ))}
       </div>
 
-      {/* History Table */}
-      <div className="bg-brand-surface rounded-xl shadow-2xl border border-white/10 overflow-hidden">
-        <div className="p-4 md:p-5 border-b border-white/10 bg-[#211E1F] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0">
-          <h2 className="text-lg font-medium text-white">{text.historyTitle}</h2>
-          <div className="flex gap-2 w-full md:w-auto bg-black/20 p-1 rounded-lg border border-white/5">
-            <button onClick={() => setAppLang('TH')} className={`flex-1 md:flex-none px-4 py-1.5 font-medium text-sm rounded-md transition-all ${appLang === 'TH' ? 'bg-white/10 text-white shadow-sm border border-white/10' : 'text-stone-400 hover:text-stone-300'}`}>TH</button>
-            <button onClick={() => setAppLang('EN')} className={`flex-1 md:flex-none px-4 py-1.5 font-medium text-sm rounded-md transition-all ${appLang === 'EN' ? 'bg-white/10 text-white shadow-sm border border-white/10' : 'text-stone-400 hover:text-stone-300'}`}>EN</button>
-          </div>
-        </div>
-        <div className="p-0 overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-[#211E1F] text-stone-400 border-b border-white/10">
-              <tr>
-                <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs">{text.thReqId}</th>
-                <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs">{text.thDate}</th>
-                <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs">{text.thDocType}</th>
-                <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs">{text.thStatus}</th>
-                <th className="px-6 py-4 font-medium tracking-wide uppercase text-xs text-right">{text.thDownload}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10 font-medium bg-brand-surface text-stone-200">
-              {isLoading && <tr><td colSpan={5} className="p-4 text-center text-brand-red">Loading...</td></tr>}
-              {!isLoading && history.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-stone-500">No documents requested yet.</td></tr>}
-              {history.map((item) => (
-                <tr key={item.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-4 text-stone-400 font-mono text-xs">{item.requestId}</td>
-                  <td className="px-6 py-4 text-stone-400">{new Date(item.createdAt).toLocaleDateString()}</td>
-                  <td className="px-6 py-4">
-                    <span className="text-white">{docsData[item.docType]?.name[appLang as 'TH' | 'EN'] || item.docType}</span>
-                    <span className="ml-2 px-2 py-0.5 border border-brand-red/30 rounded-md bg-brand-red/20 text-brand-red text-xs font-medium">{item.docLang}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {item.status === "PENDING" ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-400 border border-orange-500/20">
-                        <Clock className="h-3.5 w-3.5" /> In Queue
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        <CheckCircle className="h-3.5 w-3.5" /> Completed
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    {item.status === "COMPLETED" && item.fileUrl ? (
-                      <a
-                        href={`/api/employee${item.fileUrl}`}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/10 text-white border border-white/5 rounded-lg font-medium hover:bg-white/20 hover:shadow-md transition-all"
-                        download
-                      >
-                        <Download className="h-4 w-4" /> DOCX
-                      </a>
-                    ) : (
-                      <span className="text-stone-500">-</span>
-                    )}
-                  </td>
+      {/* History Register */}
+      <div>
+        <h2 className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft border-b-2 border-rule-strong pb-2 mb-0">
+          {text.historyTitle}
+        </h2>
+        <div className="bg-sheet shadow-sheet border border-rule overflow-hidden">
+
+          {/* Desktop/tablet: Register table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="border-b-2 border-rule-strong">
+                <tr>
+                  <th className="w-10 px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft text-right">#</th>
+                  <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.thReqId}</th>
+                  <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.thDate}</th>
+                  <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.thDocType}</th>
+                  <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.thStatus}</th>
+                  <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft text-right">{text.thDownload}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {isLoading && (
+                  <tr><td colSpan={6} className="p-8 text-center text-ink-soft">
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                  </td></tr>
+                )}
+                {!isLoading && history.length === 0 && (
+                  <tr><td colSpan={6} className="p-8 text-center text-ink-soft">No documents requested yet.</td></tr>
+                )}
+                {history.map((item, i) => (
+                  <tr key={item.id} className={`border-b border-rule ${i % 2 === 1 ? 'bg-sheet-alt' : ''}`}>
+                    <td className="px-4 py-3 text-ink-soft text-right text-xs">{i + 1}</td>
+                    <td className="px-4 py-3 text-ink-soft font-medium text-xs">{item.requestId}</td>
+                    <td className="px-4 py-3 text-ink-soft">{new Date(item.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3">
+                      <span className="font-ledger text-ink">{docsData[item.docType]?.name[appLang as 'TH' | 'EN'] || item.docType}</span>
+                      <span className="ml-2 px-1.5 py-0.5 border border-rule text-ink-soft text-[10px] font-semibold uppercase tracking-[0.05em]">{item.docLang}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.status === "PENDING" ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-status-pending" />
+                          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-pending">In Queue</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-status-approved" />
+                          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-approved">Completed</span>
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {item.status === "COMPLETED" && item.fileUrl ? (
+                        <a
+                          href={`/api/employee${item.fileUrl}`}
+                          className="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-brass hover:text-[#6B560E] transition-colors"
+                          download
+                        >
+                          <Download className="h-3.5 w-3.5" /> DOCX
+                        </a>
+                      ) : (
+                        <span className="text-ink-soft/40">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile: stacked ledger slips */}
+          <div className="md:hidden">
+            {isLoading && (
+              <div className="p-8 text-center text-ink-soft"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></div>
+            )}
+            {!isLoading && history.length === 0 && (
+              <div className="p-8 text-center text-ink-soft">No documents requested yet.</div>
+            )}
+            {history.map((item, i) => (
+              <div key={item.id} className={`px-4 py-3.5 border-b border-rule space-y-1.5 ${i % 2 === 1 ? 'bg-sheet-alt' : ''}`}>
+                <div className="flex justify-between items-start gap-3">
+                  <span className="font-ledger font-semibold text-ink">{docsData[item.docType]?.name[appLang as 'TH' | 'EN'] || item.docType}</span>
+                  <span className="text-ink-soft text-xs flex-shrink-0">{item.requestId}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs text-ink-soft">
+                  <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+                  <span className="px-1.5 py-0.5 border border-rule text-[10px] font-semibold uppercase tracking-[0.05em]">{item.docLang}</span>
+                </div>
+                <div className="flex justify-between items-center pt-0.5">
+                  {item.status === "PENDING" ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-status-pending" />
+                      <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-pending">In Queue</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-status-approved" />
+                      <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-approved">Completed</span>
+                    </span>
+                  )}
+                  {item.status === "COMPLETED" && item.fileUrl ? (
+                    <a
+                      href={`/api/employee${item.fileUrl}`}
+                      className="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-brass"
+                      download
+                    >
+                      <Download className="h-3.5 w-3.5" /> DOCX
+                    </a>
+                  ) : (
+                    <span className="text-ink-soft/40 text-xs">—</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* ── Request Modal ── */}
       {isModalOpen && selectedDocId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleCloseModal}></div>
-          <div className="relative bg-brand-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden z-10 animate-in fade-in zoom-in-95 border border-white/10 max-h-[90vh] flex flex-col">
-            
+          <div className="absolute inset-0 bg-ink/50 backdrop-blur-sm" onClick={handleCloseModal}></div>
+          <div className="relative bg-sheet shadow-overlay w-full max-w-lg z-10 max-h-[90vh] flex flex-col">
+
             {/* Modal Header */}
-            <div className="flex justify-between items-center p-6 border-b border-white/10 bg-[#211E1F] flex-shrink-0">
-              <h3 className="font-semibold text-xl text-white">{text.modalTitle}</h3>
-              <button onClick={handleCloseModal} className="text-stone-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-1.5 rounded-full shadow-sm">
+            <div className="flex justify-between items-center p-6 border-b border-rule flex-shrink-0">
+              <h3 className="font-ledger text-[1.125rem] font-semibold text-ink">{text.modalTitle}</h3>
+              <button onClick={handleCloseModal} className="text-ink-soft hover:text-ink transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             {/* Modal Body — scrollable */}
             <div className="overflow-y-auto flex-1">
               <form id="doc-request-form" onSubmit={handleSubmitRequest} className="p-6 space-y-5">
-                
+
                 {/* Document type preview */}
-                <div className="bg-black/20 p-4 rounded-xl border border-white/5 shadow-sm flex gap-4 items-center">
-                  <div className="p-3 bg-brand-red/10 border border-brand-red/20 rounded-lg text-brand-red flex-shrink-0">
-                    {React.createElement(docsData[selectedDocId].icon, { className: "h-6 w-6" })}
+                <div className="flex gap-4 items-center pb-5 border-b border-rule">
+                  <div className="p-3 border border-rule text-brass flex-shrink-0">
+                    {React.createElement(docsData[selectedDocId].icon, { className: "h-5 w-5" })}
                   </div>
                   <div>
-                    <p className="font-medium text-white text-lg">{docsData[selectedDocId].name[appLang as 'TH' | 'EN']}</p>
+                    <p className="font-ledger font-semibold text-ink text-lg">{docsData[selectedDocId].name[appLang as 'TH' | 'EN']}</p>
                     {hasExtraFields && (
-                      <p className="text-xs text-stone-500 mt-0.5">{text.autoFilled}</p>
+                      <p className="text-xs text-ink-soft mt-0.5">{text.autoFilled}</p>
                     )}
                   </div>
                 </div>
 
                 {/* Language Selector */}
                 <div>
-                  <label className="block text-sm font-medium text-stone-300 tracking-wide uppercase mb-2">{text.labelLanguage}</label>
-                  <div className="flex gap-4">
-                    <label className="flex-1 cursor-pointer">
-                      <input type="radio" name="lang" value="TH" checked={docLanguage === "TH"} onChange={(e) => setDocLanguage(e.target.value)} className="peer sr-only" />
-                      <div className="px-4 py-3 border border-white/10 rounded-xl peer-checked:border-brand-red peer-checked:bg-brand-red/10 peer-checked:text-brand-red font-medium text-center transition-all bg-black/20 text-stone-400 shadow-sm">TH</div>
-                    </label>
-                    <label className="flex-1 cursor-pointer">
-                      <input type="radio" name="lang" value="EN" checked={docLanguage === "EN"} onChange={(e) => setDocLanguage(e.target.value)} className="peer sr-only" />
-                      <div className="px-4 py-3 border border-white/10 rounded-xl peer-checked:border-brand-red peer-checked:bg-brand-red/10 peer-checked:text-brand-red font-medium text-center transition-all bg-black/20 text-stone-400 shadow-sm">EN</div>
-                    </label>
+                  <label className="block text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em] mb-2">{text.labelLanguage}</label>
+                  <div className="flex gap-3">
+                    {(['TH', 'EN'] as const).map((lang) => (
+                      <label key={lang} className="flex-1 cursor-pointer">
+                        <input type="radio" name="lang" value={lang} checked={docLanguage === lang} onChange={(e) => setDocLanguage(e.target.value)} className="peer sr-only" />
+                        <div className="px-4 py-2.5 border border-rule peer-checked:border-brass peer-checked:bg-brass/5 peer-checked:text-brass font-semibold text-xs uppercase tracking-[0.08em] text-center transition-colors text-ink-soft">{lang}</div>
+                      </label>
+                    ))}
                   </div>
                 </div>
 
                 {/* Reason Selector */}
                 <div>
-                  <label className="block text-sm font-medium text-stone-300 tracking-wide uppercase mb-2">{text.labelReason}</label>
+                  <label className="block text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em] mb-2">{text.labelReason}</label>
                   <div className="relative">
                     <select
                       value={reasonId}
                       onChange={(e) => setReasonId(e.target.value)}
-                      className="w-full border border-white/10 rounded-lg px-4 py-3 font-medium text-white focus:outline-none focus:ring-2 focus:ring-brand-red shadow-sm appearance-none bg-black/20"
+                      className="w-full border border-rule rounded-[2px] px-4 py-3 font-medium text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] appearance-none bg-sheet"
                     >
-                      <option value="financial">Financial / Loan</option>
-                      <option value="visa">Visa Application</option>
-                      <option value="education">Education</option>
-                      <option value="other">Other</option>
+                      {Object.entries(reasonLabels).map(([value, label]) => (
+                        <option key={value} value={value}>{label[appLang as 'TH' | 'EN']}</option>
+                      ))}
                     </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft" />
                   </div>
                 </div>
 
                 {/* ── Dynamic Template Fields ── */}
                 {hasExtraFields && (
-                  <div className="space-y-4">
+                  <div className="space-y-4 pt-1">
                     <div className="flex items-center gap-3">
-                      <div className="h-px flex-1 bg-white/10"></div>
-                      <span className="text-xs font-medium text-stone-400 uppercase tracking-widest">{text.labelDocInfo}</span>
-                      <div className="h-px flex-1 bg-white/10"></div>
+                      <div className="h-px flex-1 bg-rule"></div>
+                      <span className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">{text.labelDocInfo}</span>
+                      <div className="h-px flex-1 bg-rule"></div>
                     </div>
 
                     {activeFields.map((field) => (
                       <div key={field.key}>
-                        <label className="block text-sm font-medium text-stone-300 mb-1.5">
+                        <label className="block text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em] mb-1.5">
                           {appLang === 'TH' ? field.labelTH : field.label}
-                          {field.required && <span className="text-brand-red ml-1">*</span>}
+                          {field.required && <span className="text-status-rejected ml-1">*</span>}
                         </label>
 
                         {field.type === 'select' ? (
@@ -425,14 +509,14 @@ export default function EmployeeDashboard() {
                               value={templateFields[field.key] || ''}
                               onChange={(e) => handleFieldChange(field.key, e.target.value)}
                               required={field.required}
-                              className="w-full border border-white/10 rounded-lg px-4 py-3 font-medium text-white focus:outline-none focus:ring-2 focus:ring-brand-red shadow-sm appearance-none bg-black/20"
+                              className="w-full border border-rule rounded-[2px] px-4 py-3 font-medium text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] appearance-none bg-sheet"
                             >
                               <option value="" disabled>Select…</option>
                               {field.options?.map((opt) => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
                               ))}
                             </select>
-                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft" />
                           </div>
                         ) : field.type === 'date' ? (
                           <input
@@ -441,7 +525,7 @@ export default function EmployeeDashboard() {
                             value={templateFields[field.key] || ''}
                             onChange={(e) => handleFieldChange(field.key, e.target.value)}
                             required={field.required}
-                            className="w-full border border-white/10 rounded-lg px-4 py-3 font-medium text-white focus:outline-none focus:ring-2 focus:ring-brand-red shadow-sm bg-black/20 [color-scheme:dark]"
+                            className="w-full border border-rule rounded-[2px] px-4 py-3 font-medium text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] bg-sheet"
                           />
                         ) : (
                           <input
@@ -451,7 +535,7 @@ export default function EmployeeDashboard() {
                             onChange={(e) => handleFieldChange(field.key, e.target.value)}
                             required={field.required}
                             placeholder={appLang === 'TH' ? field.labelTH : field.label}
-                            className="w-full border border-white/10 rounded-lg px-4 py-3 font-medium text-white placeholder-stone-600 focus:outline-none focus:ring-2 focus:ring-brand-red shadow-sm bg-black/20"
+                            className="w-full border border-rule rounded-[2px] px-4 py-3 font-medium text-ink placeholder-ink-soft/40 focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] bg-sheet"
                           />
                         )}
                       </div>
@@ -462,15 +546,15 @@ export default function EmployeeDashboard() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-6 pt-0 flex gap-4 flex-shrink-0 border-t border-white/10 bg-[#211E1F]">
-              <button type="button" onClick={handleCloseModal} className="flex-1 py-3 px-4 bg-white/5 border border-white/10 text-stone-300 hover:bg-white/10 rounded-lg font-medium shadow-sm transition-all">{text.btnCancel}</button>
+            <div className="p-6 pt-4 flex gap-3 flex-shrink-0 border-t border-rule">
+              <button type="button" onClick={handleCloseModal} className="flex-1 py-3 px-4 border border-rule text-ink-soft hover:text-ink hover:border-rule-strong font-semibold text-xs uppercase tracking-[0.08em] transition-colors">{text.btnCancel}</button>
               <button
                 type="submit"
                 form="doc-request-form"
                 disabled={isSubmitting}
-                className="flex-1 py-3 px-4 bg-brand-red text-white hover:bg-[#8A0524] rounded-lg font-medium flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(160,7,43,0.3)] hover:shadow-[0_0_25px_rgba(160,7,43,0.5)] transition-all active:scale-[0.98]"
+                className="flex-1 py-3 px-4 bg-brass text-sheet hover:bg-[#6B560E] font-semibold text-xs uppercase tracking-[0.08em] flex items-center justify-center gap-2 transition-colors active:scale-[0.99]"
               >
-                {isSubmitting ? <><Loader2 className="h-5 w-5 animate-spin" /> …</> : text.btnConfirm}
+                {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> …</> : text.btnConfirm}
               </button>
             </div>
           </div>

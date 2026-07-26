@@ -15,10 +15,10 @@ async function main() {
 
   // Super Admin
   const superAdmin = await prisma.user.upsert({
-    where: { email: 'super@certipaws.com' },
+    where: { email: 'super@certiflow.com' },
     update: { password: hashedPassword },
     create: {
-      email: 'super@certipaws.com',
+      email: 'super@certiflow.com',
       password: hashedPassword,
       role: Role.SUPER_ADMIN,
     },
@@ -26,10 +26,10 @@ async function main() {
 
   // General Admin
   const genAdmin = await prisma.user.upsert({
-    where: { email: 'admin@certipaws.com' },
+    where: { email: 'admin@certiflow.com' },
     update: { password: hashedPassword },
     create: {
-      email: 'admin@certipaws.com',
+      email: 'admin@certiflow.com',
       password: hashedPassword,
       role: Role.GENERAL_ADMIN,
     },
@@ -37,10 +37,10 @@ async function main() {
 
   // Regular Employee (Somchai Jaidee)
   const employeeUser = await prisma.user.upsert({
-    where: { email: 'somchai@certipaws.com' },
+    where: { email: 'somchai@certiflow.com' },
     update: { password: hashedPassword },
     create: {
-      email: 'somchai@certipaws.com',
+      email: 'somchai@certiflow.com',
       password: hashedPassword,
       role: Role.EMPLOYEE,
       employee: {

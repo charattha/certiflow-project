@@ -3,7 +3,7 @@ version: '3.8'
 services:
   db:
     image: postgres:15-alpine
-    container_name: certipaws_db
+    container_name: certiflow_db
     restart: always
     env_file:
       - ./backend/.env.docker
@@ -21,7 +21,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: certipaws_backend
+    container_name: certiflow_backend
     restart: always
     env_file:
       - ./backend/.env.docker
@@ -35,7 +35,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: certipaws_frontend
+    container_name: certiflow_frontend
     restart: always
     ports:
       - "80:80"

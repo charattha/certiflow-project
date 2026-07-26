@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet, Navigate, useNavigate } from 'react-router-dom';
+import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { FileText, LogOut, LayoutDashboard, ShieldCheck, User, Menu, X, KeyRound, Loader2, AlertCircle } from 'lucide-react';
@@ -7,8 +7,9 @@ import { FileText, LogOut, LayoutDashboard, ShieldCheck, User, Menu, X, KeyRound
 export default function RootLayout() {
   const { user, token, logout, completePasswordChange } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
+
   // Password Change State
   const [showPasswordModal, setShowPasswordModal] = useState(user?.mustChangePassword || false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -59,181 +60,171 @@ export default function RootLayout() {
 
   const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'GENERAL_ADMIN';
 
+  const navItems = [
+    { path: '/dashboard', icon: LayoutDashboard, label: isAdmin ? 'Requests Overview' : 'My Documents' },
+    ...(isAdmin ? [{ path: '/admin', icon: ShieldCheck, label: 'Management' }] : []),
+  ];
+
   return (
-    <div className="flex h-screen bg-brand-dark text-white font-sans flex-col md:flex-row">
-      
+    <div className="min-h-screen flex flex-col bg-paper text-ink font-data">
+
       {/* Change Password Forced Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-brand-surface w-full max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden p-8 space-y-6">
-            <div className="text-center space-y-2">
-              <div className="bg-brand-red/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto border border-brand-red/20 mb-4">
-                <KeyRound className="h-8 w-8 text-brand-red" />
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink/50 backdrop-blur-sm">
+          <div className="bg-sheet w-full max-w-md shadow-overlay overflow-hidden">
+            <div className="p-8 space-y-6">
+              <div className="text-center space-y-2">
+                <div className="w-14 h-14 flex items-center justify-center mx-auto border border-rule-strong mb-2">
+                  <KeyRound className="h-6 w-6 text-brass" />
+                </div>
+                <h2 className="font-ledger text-[1.125rem] font-semibold text-ink">Security Update Required</h2>
+                <p className="text-ink-soft text-sm">Please update your password to continue using the register.</p>
               </div>
-              <h2 className="text-2xl font-bold text-white">Security Update Required</h2>
-              <p className="text-stone-400 text-sm">Please update your password to continue using the system.</p>
+
+              {error && (
+                <div className="bg-status-rejected/10 border border-status-rejected/30 text-status-rejected p-3 text-xs flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" /> {error}
+                </div>
+              )}
+
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Current Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    placeholder="Current password"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">New Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    placeholder="Minimum 6 characters"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Confirm New Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    placeholder="Repeat new password"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isChanging}
+                  className="w-full bg-brass text-sheet py-3 font-semibold tracking-[0.08em] uppercase text-xs hover:bg-[#6B560E] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+                >
+                  {isChanging ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Update & Continue'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full text-ink-soft text-xs hover:text-ink transition-colors pt-1"
+                >
+                  Cancel and sign out
+                </button>
+              </form>
             </div>
-
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-xs flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" /> {error}
-              </div>
-            )}
-
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Current Password</label>
-                <input 
-                  type="password"
-                  required
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none"
-                  placeholder="Current password"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">New Password</label>
-                <input 
-                  type="password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none"
-                  placeholder="Minimum 6 characters"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Confirm New Password</label>
-                <input 
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-brand-red outline-none"
-                  placeholder="Repeat new password"
-                />
-              </div>
-              <button 
-                type="submit"
-                disabled={isChanging}
-                className="w-full bg-brand-red text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-[#8A0524] transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-4"
-              >
-                {isChanging ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Update & Continue'}
-              </button>
-              <button 
-                type="button"
-                onClick={handleLogout}
-                className="w-full text-stone-500 text-xs hover:text-white transition-colors pt-2"
-              >
-                Cancel and sign out
-              </button>
-            </form>
           </div>
         </div>
       )}
 
-      {/* Mobile Top Bar */}
-      <div className="md:hidden bg-brand-surface border-b border-white/10 p-4 flex justify-between items-center shadow-sm z-20">
-        <div className="flex items-center gap-3 text-brand-red">
-          <div className="bg-brand-red p-2 rounded-lg shadow-[0_0_15px_rgba(160,7,43,0.3)]">
-            <FileText className="h-5 w-5 text-white" />
+      {/* The Binding — top navigation band */}
+      <header className="sticky top-0 z-40 h-[52px] bg-binding border-b-2 border-brass flex items-center px-4 md:px-8 flex-shrink-0">
+        <div className="flex items-center gap-2.5 flex-shrink-0">
+          {/* Crest mark: placeholder until official Marriott Marquis Bangkok crest asset is supplied */}
+          <div className="text-brass">
+            <FileText className="h-5 w-5" />
           </div>
-          <span className="font-semibold text-xl tracking-tight leading-none text-white">CertiPaws</span>
-        </div>
-        <button 
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 bg-white/5 rounded-lg text-white hover:bg-white/10 transition-colors"
-        >
-          {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
-      </div>
-
-      {/* Overlay for mobile when menu is open */}
-      {mobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-stone-900/50 z-30 md:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        ></div>
-      )}
-
-      {/* Sidebar Layout Style */}
-      <aside className={`
-        fixed md:static inset-y-0 left-0 z-40 w-64 bg-[#211E1F] border-r border-white/10 
-        flex flex-col items-center py-8 shadow-2xl md:shadow-none
-        transition-transform duration-300 ease-in-out md:translate-x-0
-        ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <div className="flex items-center gap-3 mb-10 w-full px-6">
-          <div className="bg-brand-red p-2.5 rounded-xl shadow-[0_0_15px_rgba(160,7,43,0.4)] text-white flex-shrink-0">
-            <FileText className="h-6 w-6" />
-          </div>
-          <span className="font-semibold text-2xl tracking-tight leading-none text-white truncate">
-            CertiPaws
+          <span className="font-crest text-[0.95rem] font-semibold tracking-[0.16em] uppercase text-sheet leading-none">
+            CertiFlow
           </span>
         </div>
 
-        <nav className="w-full px-4 space-y-2 flex-1">
-          <div className="px-3 mb-4 text-xs font-semibold text-stone-500 uppercase tracking-widest">
-            Menu
-          </div>
-          
-          <button 
-            onClick={() => {
-              navigate('/dashboard');
-              setMobileMenuOpen(false);
-            }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-              window.location.pathname === '/dashboard' 
-                ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]' 
-                : 'text-stone-400 hover:bg-white/5 hover:text-white'
-            }`}
-          >
-            <LayoutDashboard className="h-5 w-5" />
-            {isAdmin ? 'Requests Overview' : 'My Documents'}
-          </button>
-
-          {isAdmin && (
-            <button 
-              onClick={() => {
-                navigate('/admin');
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                window.location.pathname === '/admin' 
-                  ? 'bg-brand-red text-white shadow-[0_0_15px_rgba(160,7,43,0.3)]' 
-                  : 'text-stone-400 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              <ShieldCheck className="h-5 w-5" />
-              Management
-            </button>
-          )}
+        <nav className="hidden md:flex items-center gap-8 ml-12">
+          {navItems.map((item) => {
+            const active = location.pathname === item.path;
+            return (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={`relative py-2 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] transition-colors ${
+                  active ? 'text-sheet' : 'text-sheet/50 hover:text-sheet/80'
+                }`}
+              >
+                {item.label}
+                {active && <span className="absolute left-0 right-0 -bottom-[2px] h-[2px] bg-brass" />}
+              </button>
+            );
+          })}
         </nav>
 
-        <div className="w-full px-6 mt-auto">
-          <div className="border border-white/10 p-4 rounded-xl bg-white/5 mb-4 flex items-center gap-3 backdrop-blur-sm">
-            <div className="h-10 w-10 min-w-10 rounded-full bg-brand-dark text-brand-red flex items-center justify-center border border-brand-red/20 shadow-[0_0_10px_rgba(160,7,43,0.2)]">
-              <User className="h-5 w-5" />
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-semibold text-white truncate">{user.name}</p>
-              <p className="text-xs text-stone-400">{user.role.replace('_', ' ')}</p>
-            </div>
+        <div className="ml-auto flex items-center gap-4">
+          <div className="hidden md:flex flex-col items-end leading-tight">
+            <span className="text-sm font-medium text-sheet">{user.name}</span>
+            <span className="text-[0.6875rem] text-sheet/50 uppercase tracking-[0.08em]">{user.role.replace('_', ' ')}</span>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-white/5 hover:bg-white/10 text-stone-300 font-medium rounded-lg transition-all border border-white/10 shadow-sm"
+            className="hidden md:flex items-center gap-2 py-2 px-3 text-sheet/70 hover:text-sheet border border-sheet/15 hover:border-sheet/30 transition-colors text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
           >
-            <LogOut className="h-4 w-4" />
-            Sign Out
+            <LogOut className="h-3.5 w-3.5" /> Sign Out
+          </button>
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 text-sheet"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
-      </aside>
+      </header>
 
-      <main className="flex-1 overflow-auto bg-brand-dark relative">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(160,7,43,0.05)_0%,transparent_50%)] pointer-events-none"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(160,7,43,0.05)_0%,transparent_50%)] pointer-events-none"></div>
+      {/* Mobile ledger-tab menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-binding-soft border-b border-brass/30">
+          {navItems.map((item) => {
+            const active = location.pathname === item.path;
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.path}
+                onClick={() => {
+                  navigate(item.path);
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-6 py-3.5 text-xs font-semibold uppercase tracking-[0.08em] border-b border-sheet/5 ${
+                  active ? 'text-brass-bright' : 'text-sheet/70'
+                }`}
+              >
+                <Icon className="h-4 w-4" /> {item.label}
+              </button>
+            );
+          })}
+          <div className="flex items-center justify-between px-6 py-3.5">
+            <div className="flex items-center gap-2 text-sheet/70">
+              <User className="h-4 w-4" />
+              <span className="text-xs">{user.name} &middot; {user.role.replace('_', ' ')}</span>
+            </div>
+            <button onClick={handleLogout} className="text-brass-bright text-xs font-semibold uppercase tracking-[0.08em]">
+              Sign Out
+            </button>
+          </div>
+        </div>
+      )}
+
+      <main className="flex-1">
         <Outlet />
       </main>
     </div>

@@ -72,32 +72,33 @@ export default function BulkUpload({ onUploadComplete }: { onUploadComplete?: ()
   };
 
   return (
-    <div className="bg-brand-surface rounded-xl p-6 border border-white/10 shadow-xl space-y-4">
-      <div className="flex items-center gap-3 mb-2">
-        <Upload className="h-6 w-6 text-brand-red" />
-        <h2 className="text-xl font-semibold text-white">Bulk Employee Onboarding</h2>
+    <div className="bg-sheet shadow-sheet border border-rule p-6 space-y-4 font-data">
+      <div>
+        <h2 className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft border-b border-rule-strong pb-2 mb-1 flex items-center gap-2">
+          <Upload className="h-3.5 w-3.5 text-brass" /> Bulk Employee Onboarding
+        </h2>
       </div>
-      
-      <p className="text-stone-400 text-sm">
-        Upload a CSV file with headers: <code className="text-brand-red">emp_id, first_name, last_name, email, thai_id, department, position</code>
+
+      <p className="text-ink-soft text-sm">
+        Upload a CSV file with headers: <code className="text-brass">emp_id, first_name, last_name, email, thai_id, department, position</code>
       </p>
 
-      <div className="relative border-2 border-dashed border-white/10 rounded-lg p-8 flex flex-col items-center justify-center hover:border-brand-red/50 transition-colors group cursor-pointer">
-        <input 
-          type="file" 
-          accept=".csv" 
+      <div className="relative border border-dashed border-rule p-8 flex flex-col items-center justify-center hover:border-brass transition-colors group cursor-pointer">
+        <input
+          type="file"
+          accept=".csv"
           onChange={handleFileChange}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
-        <FileText className={`h-10 w-10 mb-2 transition-colors ${file ? 'text-brand-red' : 'text-stone-500 group-hover:text-stone-400'}`} />
-        <p className="text-stone-300 font-medium">
+        <FileText className={`h-8 w-8 mb-2 transition-colors ${file ? 'text-brass' : 'text-ink-soft/50 group-hover:text-ink-soft'}`} />
+        <p className="text-ink-soft font-medium text-sm text-center">
           {file ? file.name : 'Click or drag CSV file to upload'}
         </p>
       </div>
 
       {status && (
-        <div className={`p-4 rounded-lg flex items-center gap-3 ${status.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-          {status.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
+        <div className={`p-4 flex items-center gap-3 border ${status.type === 'success' ? 'bg-status-approved/5 text-status-approved border-status-approved/30' : 'bg-status-rejected/5 text-status-rejected border-status-rejected/30'}`}>
+          {status.type === 'success' ? <CheckCircle className="h-4 w-4 flex-shrink-0" /> : <AlertCircle className="h-4 w-4 flex-shrink-0" />}
           <span className="text-sm font-medium">{status.message}</span>
         </div>
       )}
@@ -105,12 +106,12 @@ export default function BulkUpload({ onUploadComplete }: { onUploadComplete?: ()
       <button
         onClick={handleUpload}
         disabled={!file || isUploading}
-        className="w-full bg-brand-red text-white py-3 rounded-lg font-semibold shadow-lg hover:bg-[#8A0524] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full bg-brass text-sheet py-3 font-semibold text-xs uppercase tracking-[0.08em] hover:bg-[#6B560E] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isUploading ? (
-          <><Loader2 className="h-5 w-5 animate-spin" /> Processing...</>
+          <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
         ) : (
-          <><Upload className="h-5 w-5" /> Import Employees</>
+          <><Upload className="h-4 w-4" /> Import Employees</>
         )}
       </button>
     </div>

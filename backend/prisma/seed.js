@@ -12,22 +12,22 @@ async function main() {
   const hashedPassword = hashPassword('admin123');
 
   await prisma.user.upsert({
-    where: { email: 'super@certipaws.com' },
+    where: { email: 'super@certiflow.com' },
     update: { password: hashedPassword },
-    create: { email: 'super@certipaws.com', password: hashedPassword, role: 'SUPER_ADMIN' },
+    create: { email: 'super@certiflow.com', password: hashedPassword, role: 'SUPER_ADMIN' },
   });
 
   await prisma.user.upsert({
-    where: { email: 'admin@certipaws.com' },
+    where: { email: 'admin@certiflow.com' },
     update: { password: hashedPassword },
-    create: { email: 'admin@certipaws.com', password: hashedPassword, role: 'GENERAL_ADMIN' },
+    create: { email: 'admin@certiflow.com', password: hashedPassword, role: 'GENERAL_ADMIN' },
   });
 
   await prisma.user.upsert({
-    where: { email: 'somchai@certipaws.com' },
+    where: { email: 'somchai@certiflow.com' },
     update: { password: hashedPassword },
     create: {
-      email: 'somchai@certipaws.com',
+      email: 'somchai@certiflow.com',
       password: hashedPassword,
       role: 'EMPLOYEE',
       employee: {
