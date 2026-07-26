@@ -26,7 +26,7 @@ employee.get('/requests', async (c) => {
 });
 
 const documentRequestSchema = z.object({
-  doc_type: z.enum(['salary_cert', 'emp_cert', 'visa_letter', 'payslip_copy', 'tax_50']),
+  doc_type: z.enum(['salary_cert', 'emp_cert', 'visa_letter']), // payslip_copy, tax_50: TODO not yet implemented
   doc_lang: z.enum(['TH', 'EN']),
   reason: z.enum(['financial', 'visa', 'education', 'other']),
   // User-supplied template overrides (prefix, employment_date, last_working_date)
@@ -57,6 +57,23 @@ employee.post('/requests', async (c) => {
   }
 
   const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  // Cooldown: one request per doc_type every 7 days
+  const cooldownSince = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentReq } = await supabase
+    .from('DocumentRequest')
+    .select('created_at')
+    .eq('employee_id', employeeId)
+    .eq('doc_type', doc_type)
+    .gte('created_at', cooldownSince)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (recentReq) {
+    const nextAvailable = new Date(new Date(recentReq.created_at).getTime() + 7 * 24 * 60 * 60 * 1000);
+    return c.json({ error: 'cooldown', next_available: nextAvailable.toISOString() }, 429);
+  }
 
   const { count } = await supabase
     .from('DocumentRequest')

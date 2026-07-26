@@ -113,3 +113,4 @@ model SystemAuditLog {
   details    Json?
   created_at DateTime @default(now())
 }
+

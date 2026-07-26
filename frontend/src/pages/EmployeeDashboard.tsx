@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import {
   FileText, Briefcase, Receipt, FileBadge, Plane,
-  Clock, CheckCircle, Download, X, Loader2, ChevronDown,
+  Clock, CheckCircle, Download, X, Loader2, ChevronDown, Lock,
 } from "lucide-react";
 
 const t = {
@@ -48,16 +48,16 @@ const t = {
 };
 
 const docsData: any = {
-  salary_cert:  { name: { TH: "ใบรับรองเงินเดือน",               EN: "Salary Certificate" },       icon: FileText  },
-  payslip_copy: { name: { TH: "สลิปเงินเดือนย้อนหลัง",            EN: "Payslip Reprint" },           icon: Receipt   },
-  tax_50:       { name: { TH: "หนังสือรับรองการหักภาษี (ทวิ 50)",  EN: "Withholding Tax Cert." },     icon: FileBadge },
-  emp_cert:     { name: { TH: "หนังสือรับรองการทำงาน",             EN: "Employment Certificate" },    icon: Briefcase },
-  visa_letter:  { name: { TH: "หนังสือรับรองเพื่อขอวีซ่า",         EN: "Visa Application Letter" },  icon: Plane     },
+  salary_cert:  { name: { TH: "ใบรับรองเงินเดือน",        EN: "Salary Certificate" },      icon: FileText  },
+  // payslip_copy: { name: { TH: "สลิปเงินเดือนย้อนหลัง",   EN: "Payslip Reprint" },          icon: Receipt   },  // TODO: not yet implemented
+  tax_50:       { name: { TH: "50 ทวิ",                    EN: "50 Tawi" },                  icon: FileBadge },  // TODO: not yet implemented
+  emp_cert:     { name: { TH: "หนังสือรับรองการทำงาน",      EN: "Employment Certificate" },   icon: Briefcase },
+  visa_letter:  { name: { TH: "หนังสือรับรองเพื่อขอวีซ่า",  EN: "Visa Application Letter" }, icon: Plane     },
 };
 
 const documentCategories = [
-  { title: { TH: "หมวดรายได้และภาษี", EN: "Income & Tax" },  docIds: ["salary_cert", "payslip_copy", "tax_50"] },
-  { title: { TH: "หมวดการจ้างงาน",    EN: "Employment" },     docIds: ["emp_cert", "visa_letter"] },
+  { title: { TH: "หมวดรายได้และภาษี", EN: "Income & Tax" }, docIds: ["salary_cert" /*, "payslip_copy", "tax_50" */] },
+  { title: { TH: "หมวดการจ้างงาน",    EN: "Employment" },    docIds: ["emp_cert", "visa_letter"] },
 ];
 
 // ─────────────────────────────────────────────
@@ -110,6 +110,20 @@ export default function EmployeeDashboard() {
   const isVisa = selectedDocId === 'visa_letter';
   const activeFields = selectedDocId ? (TEMPLATE_FIELDS[selectedDocId] ?? []) : [];
 
+  // Map of doc_type → next available Date (if within 7-day cooldown)
+  const cooldownMap = useMemo(() => {
+    const map: Record<string, Date> = {};
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    for (const item of history) {
+      if (map[item.doc_type]) continue; // already found most recent
+      const created = new Date(item.created_at);
+      if (created >= sevenDaysAgo) {
+        map[item.doc_type] = new Date(created.getTime() + 7 * 24 * 60 * 60 * 1000);
+      }
+    }
+    return map;
+  }, [history]);
+
   useEffect(() => { fetchRequests(); }, [token]);
   useEffect(() => {
     setVisaFields({ country_prefer_travel: '', departure_date: '', last_travel_date: '', arrival_date: '', on_duty_date: '' });
@@ -127,9 +141,12 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       await api.post('/api/employee/requests', {
         doc_type: selectedDocId,
@@ -141,8 +158,16 @@ export default function EmployeeDashboard() {
       fetchRequests();
       setIsModalOpen(false);
       setSelectedDocId(null);
-    } catch (e) {
-      console.error('Failed to submit request', e);
+    } catch (err: any) {
+      if (err.response?.status === 429) {
+        const nextAvailable = new Date(err.response.data?.next_available);
+        setSubmitError(
+          `You already requested this document recently. Next available: ${nextAvailable.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`
+        );
+      } else {
+        console.error('Failed to submit request', err);
+        setSubmitError('Failed to submit request. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -179,27 +204,37 @@ export default function EmployeeDashboard() {
               {category.docIds.map((docId) => {
                 const doc = docsData[docId];
                 const Icon = doc.icon;
+                const cooldownUntil = cooldownMap[docId];
+                const isLocked = !!cooldownUntil;
                 return (
-                  <div key={docId} className="bg-brand-surface rounded-xl border border-white/10 shadow-lg p-6 hover:-translate-y-1 hover:shadow-2xl transition-all flex flex-col h-full group">
+                  <div key={docId} className={`bg-brand-surface rounded-xl border shadow-lg p-6 flex flex-col h-full transition-all ${isLocked ? 'border-white/5 opacity-70' : 'border-white/10 hover:-translate-y-1 hover:shadow-2xl group'}`}>
                     <div className="flex items-start gap-4 mb-4">
-                      <div className="p-3 rounded-lg bg-black/20 border border-white/5 group-hover:bg-brand-red/10 group-hover:border-brand-red/20 transition-colors">
-                        <Icon className="h-6 w-6 text-brand-red" />
+                      <div className={`p-3 rounded-lg border transition-colors ${isLocked ? 'bg-black/10 border-white/5' : 'bg-black/20 border-white/5 group-hover:bg-brand-red/10 group-hover:border-brand-red/20'}`}>
+                        <Icon className={`h-6 w-6 ${isLocked ? 'text-stone-600' : 'text-brand-red'}`} />
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium text-white">{doc.name[appLang as 'TH' | 'EN']}</h3>
                         <p className="text-xs text-stone-500 mt-1">
-                          {(TEMPLATE_FIELDS[docId]?.length ?? 0) > 0
-                            ? `${TEMPLATE_FIELDS[docId].length} field${TEMPLATE_FIELDS[docId].length > 1 ? 's' : ''} required`
-                            : docId === 'visa_letter' ? 'Requires travel details' : 'Auto-filled from profile'}
+                          {isLocked
+                            ? `Available ${cooldownUntil.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                            : (TEMPLATE_FIELDS[docId]?.length ?? 0) > 0
+                              ? `${TEMPLATE_FIELDS[docId].length} field${TEMPLATE_FIELDS[docId].length > 1 ? 's' : ''} required`
+                              : docId === 'visa_letter' ? 'Requires travel details' : 'Auto-filled from profile'}
                         </p>
                       </div>
+                      {isLocked && <Lock className="h-4 w-4 text-stone-600 flex-shrink-0 mt-1" />}
                     </div>
                     <div className="mt-auto pt-4">
                       <button
-                        onClick={() => { setSelectedDocId(docId); setIsModalOpen(true); }}
-                        className="w-full py-2.5 px-4 bg-white/5 hover:bg-brand-red hover:text-white border border-transparent hover:border-brand-red font-medium rounded-lg transition-all text-stone-300"
+                        onClick={() => { if (!isLocked) { setSelectedDocId(docId); setIsModalOpen(true); setSubmitError(null); } }}
+                        disabled={isLocked}
+                        className={`w-full py-2.5 px-4 font-medium rounded-lg transition-all ${isLocked ? 'bg-white/5 text-stone-600 cursor-not-allowed border border-white/5' : 'bg-white/5 hover:bg-brand-red hover:text-white border border-transparent hover:border-brand-red text-stone-300'}`}
                       >
-                        {text.btnRequest}
+                        {isLocked ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <Lock className="h-3.5 w-3.5" /> On Cooldown
+                          </span>
+                        ) : text.btnRequest}
                       </button>
                     </div>
                   </div>
@@ -409,11 +444,19 @@ export default function EmployeeDashboard() {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 flex flex-row items-center justify-center gap-4 flex-shrink-0 border-t border-white/10 bg-[#211E1F]">
-              <button type="button" onClick={() => { setIsModalOpen(false); setSelectedDocId(null); }} className="w-40 py-3 text-center bg-white/5 border border-white/10 text-stone-300 hover:bg-white/10 rounded-lg font-medium transition-all">{text.btnCancel}</button>
-              <button type="submit" form="doc-request-form" disabled={isSubmitting} className="w-40 py-3 text-center bg-brand-red text-white hover:bg-[#8A0524] rounded-lg font-medium flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(160,7,43,0.3)] transition-all active:scale-[0.98]">
-                {isSubmitting ? <><Loader2 className="h-5 w-5 animate-spin" /> …</> : text.btnConfirm}
-              </button>
+            <div className="px-6 pb-4 flex flex-col gap-3 flex-shrink-0 border-t border-white/10 bg-[#211E1F] pt-4">
+              {submitError && (
+                <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg px-4 py-3 text-xs">
+                  <Lock className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <span>{submitError}</span>
+                </div>
+              )}
+              <div className="flex flex-row items-center justify-center gap-4">
+                <button type="button" onClick={() => { setIsModalOpen(false); setSelectedDocId(null); setSubmitError(null); }} className="w-40 py-3 text-center bg-white/5 border border-white/10 text-stone-300 hover:bg-white/10 rounded-lg font-medium transition-all">{text.btnCancel}</button>
+                <button type="submit" form="doc-request-form" disabled={isSubmitting} className="w-40 py-3 text-center bg-brand-red text-white hover:bg-[#8A0524] rounded-lg font-medium flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(160,7,43,0.3)] transition-all active:scale-[0.98]">
+                  {isSubmitting ? <><Loader2 className="h-5 w-5 animate-spin" /> …</> : text.btnConfirm}
+                </button>
+              </div>
             </div>
           </div>
         </div>
