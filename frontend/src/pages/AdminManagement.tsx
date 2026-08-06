@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { RefreshCcw, Loader2, CheckCircle, AlertCircle, ShieldCheck, UserPlus, X, Trash2, Edit2 } from "lucide-react";
+import { RefreshCcw, Loader2, CheckCircle, AlertCircle, ShieldCheck, UserPlus, X, Trash2, Edit2, ChevronDown } from "lucide-react";
 import BulkUpload from "../components/BulkUpload";
 
 export default function AdminManagement() {
@@ -19,13 +19,18 @@ export default function AdminManagement() {
   const [formData, setFormData] = useState({
     email: '',
     role: 'EMPLOYEE',
+    prefix: '',
     first_name: '',
     last_name: '',
+    gender: '',
     emp_id: '',
     thai_id: '',
     passport_no: '',
     department: '',
-    position: ''
+    position: '',
+    salary: '',
+    employment_date: '',
+    resignation_date: '',
   });
 
   useEffect(() => {
@@ -48,16 +53,22 @@ export default function AdminManagement() {
 
   const handleOpenEdit = (u: any) => {
     setEditingId(u.id);
+    const emp = Array.isArray(u.Employee) ? u.Employee[0] : u.Employee;
     setFormData({
       email: u.email,
       role: u.role,
-      first_name: u.employee?.firstName || '',
-      last_name: u.employee?.lastName || '',
-      emp_id: u.employee?.employeeId || '',
-      thai_id: u.employee?.thai_id || '',
-      passport_no: u.employee?.passport_no || '',
-      department: u.employee?.department || '',
-      position: u.employee?.position || ''
+      prefix: emp?.prefix || '',
+      first_name: emp?.first_name || '',
+      last_name: emp?.last_name || '',
+      gender: emp?.gender || '',
+      emp_id: emp?.employee_id || '',
+      thai_id: emp?.thai_id || '',
+      passport_no: emp?.passport_no || '',
+      department: emp?.department || '',
+      position: emp?.position || '',
+      salary: emp?.salary ? String(emp.salary) : '',
+      employment_date: emp?.employment_date ? emp.employment_date.slice(0, 10) : '',
+      resignation_date: emp?.resignation_date ? emp.resignation_date.slice(0, 10) : '',
     });
     setIsModalOpen(true);
   };
@@ -69,10 +80,11 @@ export default function AdminManagement() {
 
     try {
       if (editingId) {
-        await api.patch(`/api/admin/users/${editingId}`, formData, {
+        const patchRes = await api.patch(`/api/admin/users/${editingId}`, formData, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setStatus({ type: 'success', message: 'User updated successfully' });
+        const savedRole = patchRes.data?.role;
+        setStatus({ type: 'success', message: `User updated successfully${savedRole ? ` · Role: ${savedRole}` : ''}` });
       } else {
         const response = await api.post('/api/admin/users', formData, {
           headers: { Authorization: `Bearer ${token}` }
@@ -115,13 +127,18 @@ export default function AdminManagement() {
     setFormData({
       email: '',
       role: 'EMPLOYEE',
+      prefix: '',
       first_name: '',
       last_name: '',
+      gender: '',
       emp_id: '',
       thai_id: '',
       passport_no: '',
       department: '',
-      position: ''
+      position: '',
+      salary: '',
+      employment_date: '',
+      resignation_date: '',
     });
   };
 
@@ -197,16 +214,19 @@ export default function AdminManagement() {
           <p className="text-ink-soft text-sm mt-0.5">Direct database management for {user?.role.replace('_', ' ')}.</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="bg-sheet border border-rule rounded-lg text-ink px-4 py-2 focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors text-sm"
-          >
-            <option value="">All Roles</option>
-            <option value="EMPLOYEE">Employees</option>
-            <option value="GENERAL_ADMIN">General Admins</option>
-            <option value="SUPER_ADMIN">Super Admins</option>
-          </select>
+          <div className="relative">
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="appearance-none bg-sheet border border-rule rounded-lg text-ink px-4 py-2 pr-9 focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors text-sm"
+            >
+              <option value="">All Roles</option>
+              <option value="EMPLOYEE">Employees</option>
+              <option value="GENERAL_ADMIN">General Admins</option>
+              <option value="SUPER_ADMIN">Super Admins</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-soft pointer-events-none" />
+          </div>
           <button
             onClick={fetchUsers}
             className="p-2.5 border border-rule text-ink-soft hover:text-ink transition-colors"
@@ -235,9 +255,10 @@ export default function AdminManagement() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateOrUpdateUser} className="p-6 overflow-y-auto space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1.5">
+            <form onSubmit={handleCreateOrUpdateUser} className="p-6 overflow-y-auto space-y-5">
+              {/* Account */}
+              <div className={`grid gap-5 ${user?.role === 'SUPER_ADMIN' ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1'}`}>
+                <div className={user?.role === 'SUPER_ADMIN' ? 'md:col-span-2 space-y-1.5' : 'space-y-1.5'}>
                   <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Email Address</label>
                   <input
                     type="email"
@@ -248,21 +269,52 @@ export default function AdminManagement() {
                     placeholder="john@certiflow.com"
                   />
                 </div>
+                {user?.role === 'SUPER_ADMIN' && (
+                  <div className="space-y-1.5">
+                    <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">System Role</label>
+                    <select
+                      value={formData.role}
+                      onChange={(e) => setFormData({...formData, role: e.target.value})}
+                      className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
+                    >
+                      <option value="EMPLOYEE">Employee</option>
+                      <option value="GENERAL_ADMIN">General Admin</option>
+                      {/* Super Admin can only be added via direct database */}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Prefix | Gender */}
+              <div className="grid grid-cols-2 gap-6 pt-4 border-t border-rule">
                 <div className="space-y-1.5">
-                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">System Role</label>
+                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Prefix</label>
                   <select
-                    value={formData.role}
-                    onChange={(e) => setFormData({...formData, role: e.target.value})}
+                    value={formData.prefix}
+                    onChange={(e) => setFormData({...formData, prefix: e.target.value})}
                     className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                   >
-                    <option value="EMPLOYEE">Employee</option>
-                    <option value="GENERAL_ADMIN">General Admin</option>
-                    {/* Super Admin can only be added via direct database */}
+                    <option value="">—</option>
+                    <option value="Mr.">Mr.</option>
+                    <option value="Ms.">Ms.</option>
+                    <option value="Mrs.">Mrs.</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Gender</label>
+                  <select
+                    value={formData.gender}
+                    onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
+                  >
+                    <option value="">—</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-rule">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">First Name</label>
                   <input
@@ -287,6 +339,29 @@ export default function AdminManagement() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Thai National ID</label>
+                  <input
+                    type="text"
+                    value={formData.thai_id}
+                    onChange={(e) => setFormData({...formData, thai_id: e.target.value})}
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
+                    placeholder="13 Digits"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Passport Number <span className="text-ink-soft/50">(optional)</span></label>
+                  <input
+                    type="text"
+                    value={formData.passport_no}
+                    onChange={(e) => setFormData({...formData, passport_no: e.target.value})}
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
+                    placeholder="Alternative ID"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-rule">
+                <div className="space-y-1.5">
                   <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Employee ID</label>
                   <input
                     type="text"
@@ -297,29 +372,6 @@ export default function AdminManagement() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Thai National ID</label>
-                  <input
-                    type="text"
-                    value={formData.thai_id}
-                    onChange={(e) => setFormData({...formData, thai_id: e.target.value})}
-                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
-                    placeholder="13 Digits"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Passport Number</label>
-                  <input
-                    type="text"
-                    value={formData.passport_no}
-                    onChange={(e) => setFormData({...formData, passport_no: e.target.value})}
-                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
-                    placeholder="Alternative ID"
-                  />
-                </div>
-                <div className="space-y-1.5">
                   <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Department</label>
                   <input
                     type="text"
@@ -327,6 +379,49 @@ export default function AdminManagement() {
                     onChange={(e) => setFormData({...formData, department: e.target.value})}
                     className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                     placeholder="Human Resources"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Position</label>
+                  <input
+                    type="text"
+                    value={formData.position}
+                    onChange={(e) => setFormData({...formData, position: e.target.value})}
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
+                    placeholder="Manager"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Salary (THB)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.salary}
+                    onChange={(e) => setFormData({...formData, salary: e.target.value})}
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
+                    placeholder="25000"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Employment Date</label>
+                  <input
+                    type="date"
+                    value={formData.employment_date}
+                    onChange={(e) => setFormData({...formData, employment_date: e.target.value})}
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">Resignation Date <span className="text-ink-soft/50">(optional)</span></label>
+                  <input
+                    type="date"
+                    value={formData.resignation_date}
+                    onChange={(e) => setFormData({...formData, resignation_date: e.target.value})}
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                   />
                 </div>
               </div>
@@ -387,7 +482,7 @@ export default function AdminManagement() {
                         <td className="px-4 py-3 text-ink-soft text-right text-xs">{i + 1}</td>
                         <td className="px-4 py-3">
                           <p className="font-ledger font-semibold text-ink">
-                            {u.employee ? `${u.employee.firstName} ${u.employee.lastName}` : u.email.split('@')[0]}
+                            {(() => { const emp = Array.isArray(u.Employee) ? u.Employee[0] : u.Employee; return emp ? `${emp.first_name} ${emp.last_name}` : u.email.split('@')[0]; })()}
                           </p>
                           <p className="text-xs text-ink-soft">{u.email}</p>
                         </td>
@@ -402,7 +497,8 @@ export default function AdminManagement() {
                             >
                               Reset PW
                             </button>
-                            {user?.role === 'SUPER_ADMIN' && u.role !== 'SUPER_ADMIN' && (
+                            {((user?.role === 'SUPER_ADMIN' && u.role !== 'SUPER_ADMIN') ||
+                              (user?.role === 'GENERAL_ADMIN' && u.role === 'EMPLOYEE')) && (
                               <>
                                 <button
                                   onClick={() => handleOpenEdit(u)}
@@ -441,7 +537,7 @@ export default function AdminManagement() {
                     <div className="flex justify-between items-start gap-3">
                       <div>
                         <p className="font-ledger font-semibold text-ink">
-                          {u.employee ? `${u.employee.firstName} ${u.employee.lastName}` : u.email.split('@')[0]}
+                          {(() => { const emp = Array.isArray(u.Employee) ? u.Employee[0] : u.Employee; return emp ? `${emp.first_name} ${emp.last_name}` : u.email.split('@')[0]; })()}
                         </p>
                         <p className="text-xs text-ink-soft">{u.email}</p>
                       </div>

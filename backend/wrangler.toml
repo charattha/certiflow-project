@@ -12,3 +12,8 @@ FRONTEND_URL = "https://certiflow.pages.dev"
 #   wrangler secret put DATABASE_URL
 #   wrangler secret put DIRECT_URL
 #   wrangler secret put JWT_SECRET
+
+[[rules]]
+type = "Data"
+globs = ["**/*.docx", "**/*.ttf"]
+fallthrough = true

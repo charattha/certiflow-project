@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { RefreshCw, PackageCheck, CheckCircle2, Loader2 } from "lucide-react";
+import { RefreshCw, PackageCheck, CheckCircle2, PlayCircle, Loader2, Download, Trash2 } from "lucide-react";
 import AdminManagement from "./AdminManagement";
+import ServiceCharges from "./ServiceCharges";
 
 const STATUS_META: Record<string, { label: string; dot: string; text: string }> = {
   PENDING: { label: 'Pending', dot: 'bg-status-pending', text: 'text-status-pending' },
@@ -25,7 +26,9 @@ export default function AdminDashboard() {
   const [requests, setRequests] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'requests' | 'users'>('requests');
+  const [triggeringId, setTriggeringId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'requests' | 'users' | 'billing'>('requests');
 
   useEffect(() => {
     if (activeTab === 'requests') {
@@ -77,6 +80,35 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleTrigger = async (id: string) => {
+    setTriggeringId(id);
+    try {
+      await api.post(`/api/admin/requests/${id}/trigger`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchRequests();
+    } catch (e) {
+      console.error('Error triggering document', e);
+      alert('Failed to trigger generation.');
+    } finally {
+      setTriggeringId(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this document request? This cannot be undone.')) return;
+    setDeletingId(id);
+    try {
+      await api.delete(`/api/admin/requests/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      setRequests(prev => prev.filter(r => r.id !== id));
+    } catch (e) {
+      console.error('Error deleting request', e);
+      alert('Failed to delete request.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const pendingCount = requests.filter((r) => r.status === 'PENDING').length;
   const waitingCount = requests.filter((r) => r.status === 'WAITING_FOR_PICKUP').length;
   const doneCount = requests.filter((r) => r.status === 'DONE').length;
@@ -109,10 +141,19 @@ export default function AdminDashboard() {
             Users
             {activeTab === 'users' && <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-red" />}
           </button>
+          <button
+            onClick={() => setActiveTab('billing')}
+            className={`relative pb-2 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] transition-colors ${
+              activeTab === 'billing' ? 'text-ink' : 'text-ink-soft/60 hover:text-ink-soft'
+            }`}
+          >
+            SVC
+            {activeTab === 'billing' && <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-red" />}
+          </button>
         </div>
       </div>
 
-      {activeTab === 'requests' ? (
+      {activeTab === 'requests' && (
         <div className="space-y-6">
 
           {/* Balance strip — collapses to a 2x2-style block below ~720px */}
@@ -161,64 +202,100 @@ export default function AdminDashboard() {
                     <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">Doc Type</th>
                     <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">Status</th>
                     <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft text-right">Actions</th>
+                    <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft text-right">File</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading && (
-                    <tr><td colSpan={6} className="p-8 text-center text-ink-soft"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></td></tr>
+                    <tr><td colSpan={7} className="p-8 text-center text-ink-soft"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></td></tr>
                   )}
                   {!isLoading && requests.length === 0 && (
-                    <tr><td colSpan={6} className="p-8 text-center text-ink-soft">No active requests yet.</td></tr>
+                    <tr><td colSpan={7} className="p-8 text-center text-ink-soft">No active requests yet.</td></tr>
                   )}
 
-                  {requests.map((req, i) => (
+                  {requests.map((req, i) => {
+                    const emp = Array.isArray(req.Employee) ? req.Employee[0] : req.Employee;
+                    return (
                     <tr key={req.id} className={`border-b border-rule hover:bg-sheet-alt transition-colors ${i % 2 === 1 ? 'bg-sheet-alt' : ''}`}>
                       <td className="px-4 py-3 text-ink-soft text-right text-xs">{i + 1}</td>
-                      <td className="px-4 py-3 text-ink-soft font-medium text-xs">{req.requestId}</td>
+                      <td className="px-4 py-3 text-ink-soft font-medium text-xs">{req.request_id}</td>
                       <td className="px-4 py-3">
-                        <p className="font-ledger font-semibold text-ink">{req.employee?.firstName} {req.employee?.lastName}</p>
-                        <p className="text-xs text-ink-soft mt-0.5">{req.employee?.employeeId}</p>
+                        <p className="font-ledger font-semibold text-ink">{emp?.first_name} {emp?.last_name}</p>
+                        <p className="text-xs text-ink-soft mt-0.5">{emp?.employee_id}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="font-medium text-ink">{req.docType}</span>
-                        <span className="ml-2 px-1.5 py-0.5 border border-rule text-ink-soft text-[10px] font-semibold uppercase tracking-[0.05em]">{req.docLang}</span>
+                        <span className="font-medium text-ink">{req.doc_type}</span>
+                        <span className="ml-2 px-1.5 py-0.5 border border-rule text-ink-soft text-[10px] font-semibold uppercase tracking-[0.05em]">{req.doc_lang}</span>
                       </td>
                       <td className="px-4 py-3">
                         <StatusSeal status={req.status} />
                       </td>
                       <td className="px-4 py-3 text-right">
-                        {req.status === 'PENDING' && (
+                        <div className="inline-flex items-center gap-2">
+                          {req.status === 'PENDING' && (
+                            <button
+                              onClick={() => handleIssue(req.id)}
+                              disabled={actingId === req.id}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule text-ink-soft hover:text-red hover:border-red transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
+                            >
+                              {actingId === req.id ? (
+                                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Issuing</>
+                              ) : (
+                                <><PackageCheck className="h-3.5 w-3.5" /> Issue</>
+                              )}
+                            </button>
+                          )}
+                          {req.status === 'WAITING_FOR_PICKUP' && (
+                            <button
+                              onClick={() => handlePickup(req.id)}
+                              disabled={actingId === req.id}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule text-ink-soft hover:text-red hover:border-red transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
+                            >
+                              {actingId === req.id ? (
+                                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Confirming</>
+                              ) : (
+                                <><CheckCircle2 className="h-3.5 w-3.5" /> Confirm Pickup</>
+                              )}
+                            </button>
+                          )}
                           <button
-                            onClick={() => handleIssue(req.id)}
-                            disabled={actingId === req.id}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule text-ink-soft hover:text-red hover:border-red transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
+                            onClick={() => handleTrigger(req.id)}
+                            disabled={triggeringId === req.id}
+                            title="Reprint / retry document generation"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule text-ink-soft hover:text-ink hover:border-rule-strong transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
                           >
-                            {actingId === req.id ? (
-                              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Issuing</>
+                            {triggeringId === req.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : (
-                              <><PackageCheck className="h-3.5 w-3.5" /> Issue Document</>
+                              <PlayCircle className="h-3.5 w-3.5" />
                             )}
                           </button>
-                        )}
-                        {req.status === 'WAITING_FOR_PICKUP' && (
                           <button
-                            onClick={() => handlePickup(req.id)}
-                            disabled={actingId === req.id}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule text-ink-soft hover:text-red hover:border-red transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
+                            onClick={() => handleDelete(req.id)}
+                            disabled={deletingId === req.id}
+                            title="Delete request"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule text-ink-soft hover:text-status-rejected hover:border-status-rejected transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
                           >
-                            {actingId === req.id ? (
-                              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Confirming</>
-                            ) : (
-                              <><CheckCircle2 className="h-3.5 w-3.5" /> Confirm Pickup</>
-                            )}
+                            {deletingId === req.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                           </button>
-                        )}
-                        {req.status === 'DONE' && (
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {req.file_url ? (
+                          <a
+                            href={req.file_url}
+                            download
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rule text-ink-soft hover:text-ink hover:border-rule-strong transition-colors text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
+                          >
+                            <Download className="h-3.5 w-3.5" /> PDF
+                          </a>
+                        ) : (
                           <span className="text-ink-soft/40">—</span>
                         )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -231,59 +308,72 @@ export default function AdminDashboard() {
               {!isLoading && requests.length === 0 && (
                 <div className="p-8 text-center text-ink-soft">No active requests yet.</div>
               )}
-              {requests.map((req, i) => (
+              {requests.map((req, i) => {
+                const emp = Array.isArray(req.Employee) ? req.Employee[0] : req.Employee;
+                return (
                 <div key={req.id} className={`px-4 py-3.5 border-b border-rule space-y-1.5 ${i % 2 === 1 ? 'bg-sheet-alt' : ''}`}>
                   <div className="flex justify-between items-start gap-3">
                     <div>
-                      <p className="font-ledger font-semibold text-ink">{req.employee?.firstName} {req.employee?.lastName}</p>
-                      <p className="text-xs text-ink-soft mt-0.5">{req.employee?.employeeId}</p>
+                      <p className="font-ledger font-semibold text-ink">{emp?.first_name} {emp?.last_name}</p>
+                      <p className="text-xs text-ink-soft mt-0.5">{emp?.employee_id}</p>
                     </div>
-                    <span className="text-ink-soft text-xs flex-shrink-0">{req.requestId}</span>
+                    <span className="text-ink-soft text-xs flex-shrink-0">{req.request_id}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
-                    <span className="font-medium text-ink">{req.docType}</span>
-                    <span className="px-1.5 py-0.5 border border-rule text-ink-soft text-[10px] font-semibold uppercase tracking-[0.05em]">{req.docLang}</span>
+                    <span className="font-medium text-ink">{req.doc_type}</span>
+                    <span className="px-1.5 py-0.5 border border-rule text-ink-soft text-[10px] font-semibold uppercase tracking-[0.05em]">{req.doc_lang}</span>
                   </div>
                   <div className="flex justify-between items-center pt-0.5">
                     <StatusSeal status={req.status} />
-                    {req.status === 'PENDING' && (
-                      <button
-                        onClick={() => handleIssue(req.id)}
-                        disabled={actingId === req.id}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule text-ink-soft hover:text-red hover:border-red transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
-                      >
-                        {actingId === req.id ? (
-                          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Issuing</>
-                        ) : (
-                          <><PackageCheck className="h-3.5 w-3.5" /> Issue Document</>
-                        )}
-                      </button>
-                    )}
-                    {req.status === 'WAITING_FOR_PICKUP' && (
-                      <button
-                        onClick={() => handlePickup(req.id)}
-                        disabled={actingId === req.id}
-                        className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule text-ink-soft hover:text-red hover:border-red transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
-                      >
-                        {actingId === req.id ? (
-                          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Confirming</>
-                        ) : (
-                          <><CheckCircle2 className="h-3.5 w-3.5" /> Confirm Pickup</>
-                        )}
-                      </button>
-                    )}
-                    {req.status === 'DONE' && (
-                      <span className="text-ink-soft/40 text-xs">—</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {req.status === 'PENDING' && (
+                        <button
+                          onClick={() => handleIssue(req.id)}
+                          disabled={actingId === req.id}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule text-ink-soft hover:text-red hover:border-red transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
+                        >
+                          {actingId === req.id ? (
+                            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Issuing</>
+                          ) : (
+                            <><PackageCheck className="h-3.5 w-3.5" /> Issue</>
+                          )}
+                        </button>
+                      )}
+                      {req.status === 'WAITING_FOR_PICKUP' && (
+                        <button
+                          onClick={() => handlePickup(req.id)}
+                          disabled={actingId === req.id}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 border border-rule text-ink-soft hover:text-red hover:border-red transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
+                        >
+                          {actingId === req.id ? (
+                            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Confirming</>
+                          ) : (
+                            <><CheckCircle2 className="h-3.5 w-3.5" /> Confirm Pickup</>
+                          )}
+                        </button>
+                      )}
+                      {req.file_url && (
+                        <a
+                          href={req.file_url}
+                          download
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-rule text-ink-soft hover:text-ink hover:border-rule-strong transition-colors text-[0.6875rem] font-semibold uppercase tracking-[0.08em]"
+                        >
+                          <Download className="h-3.5 w-3.5" /> PDF
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
-      ) : (
-        <AdminManagement />
       )}
+
+      {activeTab === 'users' && <AdminManagement />}
+
+      {activeTab === 'billing' && <ServiceCharges />}
     </div>
   );
 }

@@ -1,15 +1,11 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")       // Pooled connection (port 6543) — used at runtime
-  directUrl = env("DIRECT_URL")         // Direct connection (port 5432) — used for migrations
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -24,55 +20,97 @@ enum RequestStatus {
   DONE                // Employee picked it up
 }
 
+enum Gender {
+  MALE   @map("Male")
+  FEMALE @map("Female")
+}
+
+enum Prefix {
+  MR  @map("Mr.")
+  MS  @map("Ms.")
+  MRS @map("Mrs.")
+}
+
 model User {
-  id                  String    @id @default(uuid())
-  email               String    @unique
-  password            String
-  role                Role      @default(EMPLOYEE)
-  mustChangePassword  Boolean   @default(true) // Force change on first login or reset
-  employee            Employee?
-  failedLoginAttempts Int       @default(0)
-  lockoutUntil        DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id                    String    @id @default(uuid())
+  email                 String    @unique
+  password              String
+  role                  Role      @default(EMPLOYEE)
+  must_change_password  Boolean   @default(true)
+  failed_login_attempts Int       @default(0)
+  lockout_until         DateTime?
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @updatedAt
+
+  employee              Employee?
 }
 
 model Employee {
-  id               String            @id @default(uuid())
-  employeeId       String            @unique // e.g., EMP-10293
-  firstName        String
-  lastName         String
-  thai_id          String?           // For default password generation & bulk upsert
-  passport_no      String?           // Alternative for default password generation
+  id               String    @id @default(uuid())
+  employee_id      String    @unique
+  prefix           Prefix?
+  first_name       String
+  last_name        String
+  gender           Gender?
+  thai_id          String?
+  passport_no      String?
   department       String?
   position         String?
-  userId           String            @unique
-  user             User              @relation(fields: [userId], references: [id])
-  documentRequests DocumentRequest[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  salary           Decimal?  @db.Decimal(10, 2)
+  employment_date  DateTime?
+  resignation_date DateTime?
+  user_id          String    @unique
+  user             User      @relation(fields: [user_id], references: [id])
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  document_requests DocumentRequest[]
+  service_charges   ServiceCharge[]
 }
 
 model DocumentRequest {
-  id             String        @id @default(uuid())
-  requestId      String        @unique // e.g., REQ-001
-  docType        String        // e.g., salary_cert, emp_cert
-  docLang        String        // TH or EN
-  reason         String        // e.g., financial, visa
-  status         RequestStatus @default(PENDING)
-  templateFields Json?         // Key-value pairs used to fill in the physical document
-  employeeId     String
-  employee       Employee      @relation(fields: [employeeId], references: [id])
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id                String         @id @default(uuid())
+  request_id        String         @unique
+  doc_type          String
+  doc_lang          String
+  reason            String
+  status            RequestStatus  @default(PENDING)
+  file_url          String?
+  expires_at        DateTime?
+  template_fields   Json?
+  employee_id       String
+  employee          Employee       @relation(fields: [employee_id], references: [id])
+  service_charge_id String?
+  service_charge    ServiceCharge? @relation(fields: [service_charge_id], references: [id])
+  on_duty_date String?
+  departure_date    DateTime?
+  last_travel_date  DateTime?
+  arrival_date      DateTime?
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+  country_prefer_travel String?
+}
+
+model ServiceCharge {
+  id          String    @id @default(uuid())
+  employee_id String
+  employee    Employee  @relation(fields: [employee_id], references: [id])
+  month       Int
+  year        Int
+  amount      Decimal   @db.Decimal(10, 2)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  document_requests DocumentRequest[]
 }
 
 model SystemAuditLog {
-  id          String   @id @default(uuid())
-  actorId     String   // ID of the user performing the action
-  actorRole   String   // Role of the actor (SUPER_ADMIN, GENERAL_ADMIN, EMPLOYEE)
-  action      String   // e.g., 'PASSWORD_RESET', 'BULK_UPSERT', etc.
-  targetId    String?  // ID of the user/entity being affected (if applicable)
-  details     Json?    // Any additional data (e.g., changes made)
-  createdAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  actor_id   String
+  actor_role String
+  action     String
+  target_id  String?
+  details    Json?
+  created_at DateTime @default(now())
 }
+

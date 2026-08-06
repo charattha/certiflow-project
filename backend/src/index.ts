@@ -8,7 +8,7 @@ import employeeRoutes from './routes/employee';
 import adminRoutes from './routes/admin';
 
 import { errorHandler } from './middleware/errorHandler';
-import { AppEnv } from './types';
+import { AppEnv } from './types/env';
 
 const app = new Hono<AppEnv>();
 
@@ -37,12 +37,13 @@ app.route('/api/admin', adminRoutes);
 
 // Health check
 app.get('/health', (c) => {
-  return c.json({ 
-    status: 'ok', 
-    service: 'certiflow-worker', 
-    timestamp: new Date().toISOString() 
+  return c.json({
+    status: 'ok',
+    service: 'certiflow-worker',
+    timestamp: new Date().toISOString()
   });
 });
+
 
 // Error Handling
 app.onError(errorHandler);

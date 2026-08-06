@@ -1,21 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import {
   FileText,
   Briefcase,
-  Receipt,
   FileBadge,
   Plane,
   X,
   Loader2,
   ChevronDown,
   ChevronRight,
+  Download,
+  Lock,
 } from "lucide-react";
 
-// ─────────────────────────────────────────────
-// Translations
-// ─────────────────────────────────────────────
 const t = {
   TH: {
     bannerTitle: "บริการขอเอกสารออนไลน์ (Self-Service)",
@@ -27,21 +25,21 @@ const t = {
     thReqId: "รหัสคำขอ",
     thDate: "วันที่",
     thDocType: "ประเภทเอกสาร",
-    thReason: "เหตุผล",
     thStatus: "สถานะ",
     thPickup: "การรับเอกสาร",
     pickedUp: "รับเอกสารแล้ว",
-    autoFilled: "* กรอกอัตโนมัติจากโปรไฟล์ของคุณ",
     modalTitle: "รายละเอียดคำขอ",
     labelLanguage: "ภาษา",
     labelReason: "เหตุผล",
+    labelVisaInfo: "ข้อมูลวีซ่า",
     labelDocInfo: "ข้อมูลสำหรับเอกสาร",
+    autoFilled: "* ข้อมูลจะถูกดึงจากโปรไฟล์ของคุณโดยอัตโนมัติ",
     btnCancel: "ยกเลิก",
     btnConfirm: "ยืนยัน",
   },
   EN: {
     bannerTitle: "Online Document Request (Self-Service)",
-    bannerDesc: "Submit your request online and HR will prepare the physical document for you to collect.",
+    bannerDesc: "Submit your request online — documents are generated automatically and ready for pickup.",
     inQueue: "In Queue",
     readyForPickup: "Ready for Pickup",
     btnRequest: "Request Document",
@@ -49,15 +47,15 @@ const t = {
     thReqId: "Request ID",
     thDate: "Date",
     thDocType: "Document Type",
-    thReason: "Reason",
     thStatus: "Status",
     thPickup: "Pickup",
     pickedUp: "Picked Up",
-    autoFilled: "* Auto-filled from your profile",
     modalTitle: "Request Details",
     labelLanguage: "Language",
     labelReason: "Reason",
+    labelVisaInfo: "Visa Information",
     labelDocInfo: "Document Information",
+    autoFilled: "* All details are auto-filled from your profile",
     btnCancel: "Cancel",
     btnConfirm: "Confirm",
   },
@@ -74,94 +72,95 @@ const reasonLabels: Record<string, { TH: string; EN: string }> = {
 // Document Type Metadata
 // ─────────────────────────────────────────────
 const docsData: any = {
-  salary_cert: { name: { TH: "ใบรับรองเงินเดือน", EN: "Salary Certificate" }, icon: FileText },
-  payslip_copy: { name: { TH: "สลิปเงินเดือนย้อนหลัง", EN: "Payslip Reprint" }, icon: Receipt },
-  tax_50: { name: { TH: "หนังสือรับรองการหักภาษี (ทวิ 50)", EN: "Withholding Tax Cert." }, icon: FileBadge },
-  emp_cert: { name: { TH: "หนังสือรับรองการทำงาน", EN: "Employment Certificate" }, icon: Briefcase },
-  visa_letter: { name: { TH: "หนังสือรับรองเพื่อขอวีซ่า", EN: "Visa Application Letter" }, icon: Plane },
+  salary_cert:  { name: { TH: "ใบรับรองเงินเดือน",        EN: "Salary Certificate" },      icon: FileText  },
+  // payslip_copy: { name: { TH: "สลิปเงินเดือนย้อนหลัง",   EN: "Payslip Reprint" },          icon: Receipt   },  // TODO: not yet implemented
+  tax_50:       { name: { TH: "50 ทวิ",                    EN: "50 Tawi" },                  icon: FileBadge },  // TODO: not yet implemented
+  emp_cert:     { name: { TH: "หนังสือรับรองการทำงาน",      EN: "Employment Certificate" },   icon: Briefcase },
+  visa_letter:  { name: { TH: "หนังสือรับรองเพื่อขอวีซ่า",  EN: "Visa Application Letter" }, icon: Plane     },
 };
 
 const documentCategories = [
-  { title: { TH: "หมวดรายได้และภาษี", EN: "Income & Tax" }, docIds: ["salary_cert", "payslip_copy", "tax_50"] },
-  { title: { TH: "หมวดการจ้างงาน", EN: "Employment" }, docIds: ["emp_cert", "visa_letter"] },
+  { title: { TH: "หมวดรายได้และภาษี", EN: "Income & Tax" }, docIds: ["salary_cert" /*, "payslip_copy", "tax_50" */] },
+  { title: { TH: "หมวดการจ้างงาน",    EN: "Employment" },    docIds: ["emp_cert", "visa_letter"] },
 ];
 
 // ─────────────────────────────────────────────
-// Template Field Definitions (mirrors backend/src/utils/templateFields.ts)
-// These are the ONLY fields shown to the user — auto-filled fields are excluded.
+// Template Fields (user-input, per doc type)
 // ─────────────────────────────────────────────
 interface FieldDef {
   key: string;
   label: string;
   labelTH: string;
-  type: "text" | "date" | "select" | "number";
+  type: 'text' | 'date' | 'select' | 'number';
   required: boolean;
   options?: { value: string; label: string }[];
 }
 
-const PREFIX_FIELD: FieldDef = {
-  key: "prefix",
-  label: "Title / Prefix",
-  labelTH: "คำนำหน้า",
-  type: "select",
-  required: true,
-  options: [
-    { value: "Mr.", label: "Mr." },
-    { value: "Ms.", label: "Ms." },
-    { value: "Mrs.", label: "Mrs." },
-  ],
-};
-
 const TEMPLATE_FIELDS: Record<string, FieldDef[]> = {
   // Salary cert and employment cert need no extra fields beyond the reason — just request them.
+  // Visa letter fields are collected via the dedicated visaFields state/UI instead.
   salary_cert: [],
   emp_cert: [],
-  visa_letter: [
-    PREFIX_FIELD,
-    { key: "total_svc", label: "Total Income (THB)", labelTH: "รายได้รวม (บาท)", type: "number", required: true },
-    { key: "country", label: "Destination Country", labelTH: "ประเทศปลายทาง", type: "text", required: true },
-    { key: "daparture_date", label: "Departure Date", labelTH: "วันเดินทางออก", type: "date", required: true },
-    { key: "last_travel_date", label: "Return Date", labelTH: "วันเดินทางกลับ", type: "date", required: true },
-  ],
+  visa_letter: [],
   payslip_copy: [],
   tax_50: [],
 };
 
-// ─────────────────────────────────────────────
-// Main Component
-// ─────────────────────────────────────────────
+interface VisaFields {
+  country_prefer_travel: string;
+  departure_date: string;
+  last_travel_date: string;
+  arrival_date: string;
+  on_duty_date: string;
+}
+
 export default function EmployeeDashboard() {
   const { token } = useAuth();
   const [appLang, setAppLang] = useState("EN");
   const [history, setHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reasonId, setReasonId] = useState("financial");
   const [docLanguage, setDocLanguage] = useState("TH");
-
-  // Dynamic template field values
   const [templateFields, setTemplateFields] = useState<Record<string, string>>({});
+  const [visaFields, setVisaFields] = useState<VisaFields>({
+    country_prefer_travel: '',
+    departure_date: '',
+    last_travel_date: '',
+    arrival_date: '',
+    on_duty_date: '',
+  });
 
   const text = t[appLang as 'TH' | 'EN'];
+  const isVisa = selectedDocId === 'visa_letter';
+  const activeFields = selectedDocId ? (TEMPLATE_FIELDS[selectedDocId] ?? []) : [];
 
-  useEffect(() => {
-    fetchRequests();
-  }, [token]);
+  // Map of doc_type → next available Date (if within 7-day cooldown)
+  const cooldownMap = useMemo(() => {
+    const map: Record<string, Date> = {};
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    for (const item of history) {
+      if (map[item.doc_type]) continue; // already found most recent
+      const created = new Date(item.created_at);
+      if (created >= sevenDaysAgo) {
+        map[item.doc_type] = new Date(created.getTime() + 7 * 24 * 60 * 60 * 1000);
+      }
+    }
+    return map;
+  }, [history]);
 
-  // Reset template fields when a new doc type is selected
+  useEffect(() => { fetchRequests(); }, [token]);
   useEffect(() => {
+    setVisaFields({ country_prefer_travel: '', departure_date: '', last_travel_date: '', arrival_date: '', on_duty_date: '' });
     setTemplateFields({});
   }, [selectedDocId]);
 
   const fetchRequests = async () => {
     try {
-      const res = await api.get('/api/employee/requests', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get('/api/employee/requests', { headers: { Authorization: `Bearer ${token}` } });
       setHistory(res.data);
     } catch (e) {
       console.error('Error fetching requests', e);
@@ -170,37 +169,33 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const handleOpenModal = (docId: string) => {
-    setSelectedDocId(docId);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedDocId(null);
-  };
-
-  const handleFieldChange = (key: string, value: string) => {
-    setTemplateFields((prev) => ({ ...prev, [key]: value }));
-  };
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const handleSubmitRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
+    setSubmitError(null);
     try {
       await api.post('/api/employee/requests', {
-        docType: selectedDocId,
-        docLang: docLanguage,
+        doc_type: selectedDocId,
+        doc_lang: docLanguage,
         reason: reasonId,
-        templateFields,
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+        ...(activeFields.length > 0 ? { template_fields: templateFields } : {}),
+        ...(isVisa ? visaFields : {}),
+      }, { headers: { Authorization: `Bearer ${token}` } });
       fetchRequests();
-      handleCloseModal();
-    } catch (e) {
-      console.error('Failed to submit request', e);
+      setIsModalOpen(false);
+      setSelectedDocId(null);
+    } catch (err: any) {
+      if (err.response?.status === 429) {
+        const nextAvailable = new Date(err.response.data?.next_available);
+        setSubmitError(
+          `You already requested this document recently. Next available: ${nextAvailable.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`
+        );
+      } else {
+        console.error('Failed to submit request', err);
+        setSubmitError('Failed to submit request. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -208,12 +203,8 @@ export default function EmployeeDashboard() {
 
   const pendingCount = history.filter((h) => h.status === "PENDING").length;
   const waitingCount = history.filter((h) => h.status === "WAITING_FOR_PICKUP").length;
-  const activeFields = selectedDocId ? (TEMPLATE_FIELDS[selectedDocId] || []) : [];
   const hasExtraFields = activeFields.length > 0;
 
-  // ─────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────
   return (
     <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8 font-data text-ink">
 
@@ -272,26 +263,37 @@ export default function EmployeeDashboard() {
               {category.docIds.map((docId) => {
                 const doc = docsData[docId];
                 const Icon = doc.icon;
-                const fieldCount = TEMPLATE_FIELDS[docId]?.length || 0;
+                const cooldownUntil = cooldownMap[docId];
+                const isLocked = !!cooldownUntil;
+                const fieldCount = TEMPLATE_FIELDS[docId]?.length ?? 0;
                 return (
                   <button
                     key={docId}
-                    onClick={() => handleOpenModal(docId)}
-                    className="w-full flex items-center gap-4 px-6 py-4 hover:bg-sheet-alt transition-colors text-left group"
+                    onClick={() => { if (!isLocked) { setSelectedDocId(docId); setIsModalOpen(true); setSubmitError(null); } }}
+                    disabled={isLocked}
+                    className={`w-full flex items-center gap-4 px-6 py-4 transition-colors text-left group ${isLocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-sheet-alt'}`}
                   >
-                    <Icon className="h-5 w-5 text-red flex-shrink-0" />
+                    <Icon className={`h-5 w-5 flex-shrink-0 ${isLocked ? 'text-ink-soft/50' : 'text-red'}`} />
                     <div className="flex-1 min-w-0">
                       <p className="font-ledger font-semibold text-ink">{doc.name[appLang as 'TH' | 'EN']}</p>
-                      {fieldCount > 0 && (
-                        <p className="text-xs text-ink-soft mt-0.5">
-                          {fieldCount} field{fieldCount > 1 ? 's' : ''} required
-                        </p>
-                      )}
+                      <p className="text-xs text-ink-soft mt-0.5">
+                        {isLocked
+                          ? `Available ${cooldownUntil.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                          : fieldCount > 0
+                            ? `${fieldCount} field${fieldCount > 1 ? 's' : ''} required`
+                            : docId === 'visa_letter' ? 'Requires travel details' : 'Auto-filled from profile'}
+                      </p>
                     </div>
-                    <span className="hidden sm:inline text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-red opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
-                      {text.btnRequest}
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-ink-soft/50 flex-shrink-0" />
+                    {isLocked ? (
+                      <Lock className="h-4 w-4 text-ink-soft/50 flex-shrink-0" />
+                    ) : (
+                      <>
+                        <span className="hidden sm:inline text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-red opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
+                          {text.btnRequest}
+                        </span>
+                        <ChevronRight className="h-4 w-4 text-ink-soft/50 flex-shrink-0" />
+                      </>
+                    )}
                   </button>
                 );
               })}
@@ -332,11 +334,11 @@ export default function EmployeeDashboard() {
                 {history.map((item, i) => (
                   <tr key={item.id} className={`border-b border-rule ${i % 2 === 1 ? 'bg-sheet-alt' : ''}`}>
                     <td className="px-4 py-3 text-ink-soft text-right text-xs">{i + 1}</td>
-                    <td className="px-4 py-3 text-ink-soft font-medium text-xs">{item.requestId}</td>
-                    <td className="px-4 py-3 text-ink-soft">{new Date(item.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-ink-soft font-medium text-xs">{item.request_id}</td>
+                    <td className="px-4 py-3 text-ink-soft">{new Date(item.created_at).toLocaleDateString()}</td>
                     <td className="px-4 py-3">
-                      <span className="font-ledger text-ink">{docsData[item.docType]?.name[appLang as 'TH' | 'EN'] || item.docType}</span>
-                      <span className="ml-2 px-1.5 py-0.5 border border-rule text-ink-soft text-[10px] font-semibold uppercase tracking-[0.05em]">{item.docLang}</span>
+                      <span className="font-ledger text-ink">{docsData[item.doc_type]?.name[appLang as 'TH' | 'EN'] || item.doc_type}</span>
+                      <span className="ml-2 px-1.5 py-0.5 border border-rule text-ink-soft text-[10px] font-semibold uppercase tracking-[0.05em]">{item.doc_lang}</span>
                     </td>
                     <td className="px-4 py-3">
                       {item.status === "PENDING" && (
@@ -359,7 +361,15 @@ export default function EmployeeDashboard() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {item.status === "WAITING_FOR_PICKUP" ? (
+                      {item.file_url ? (
+                        <a
+                          href={item.file_url}
+                          download
+                          className="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-red hover:text-[#6E1224] transition-colors"
+                        >
+                          <Download className="h-3.5 w-3.5" /> PDF
+                        </a>
+                      ) : item.status === "WAITING_FOR_PICKUP" ? (
                         <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-red">
                           {appLang === 'TH' ? 'รับที่แผนก HR' : 'Collect at HR desk'}
                         </span>
@@ -384,12 +394,12 @@ export default function EmployeeDashboard() {
             {history.map((item, i) => (
               <div key={item.id} className={`px-4 py-3.5 border-b border-rule space-y-1.5 ${i % 2 === 1 ? 'bg-sheet-alt' : ''}`}>
                 <div className="flex justify-between items-start gap-3">
-                  <span className="font-ledger font-semibold text-ink">{docsData[item.docType]?.name[appLang as 'TH' | 'EN'] || item.docType}</span>
-                  <span className="text-ink-soft text-xs flex-shrink-0">{item.requestId}</span>
+                  <span className="font-ledger font-semibold text-ink">{docsData[item.doc_type]?.name[appLang as 'TH' | 'EN'] || item.doc_type}</span>
+                  <span className="text-ink-soft text-xs flex-shrink-0">{item.request_id}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs text-ink-soft">
-                  <span>{new Date(item.createdAt).toLocaleDateString()}</span>
-                  <span className="px-1.5 py-0.5 border border-rule text-[10px] font-semibold uppercase tracking-[0.05em]">{item.docLang}</span>
+                  <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                  <span className="px-1.5 py-0.5 border border-rule text-[10px] font-semibold uppercase tracking-[0.05em]">{item.doc_lang}</span>
                 </div>
                 <div className="flex justify-between items-center pt-0.5">
                   {item.status === "PENDING" && (
@@ -410,7 +420,15 @@ export default function EmployeeDashboard() {
                       <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-approved">{text.pickedUp}</span>
                     </span>
                   )}
-                  {item.status === "WAITING_FOR_PICKUP" ? (
+                  {item.file_url ? (
+                    <a
+                      href={item.file_url}
+                      download
+                      className="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-red"
+                    >
+                      <Download className="h-3.5 w-3.5" /> PDF
+                    </a>
+                  ) : item.status === "WAITING_FOR_PICKUP" ? (
                     <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-red">
                       {appLang === 'TH' ? 'รับที่แผนก HR' : 'Collect at HR desk'}
                     </span>
@@ -424,16 +442,16 @@ export default function EmployeeDashboard() {
         </div>
       </div>
 
-      {/* ── Request Modal ── */}
+      {/* Modal */}
       {isModalOpen && selectedDocId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-ink/50 backdrop-blur-sm" onClick={handleCloseModal}></div>
+          <div className="absolute inset-0 bg-ink/50 backdrop-blur-sm" onClick={() => { setIsModalOpen(false); setSelectedDocId(null); }}></div>
           <div className="relative bg-sheet shadow-overlay rounded-xl w-full max-w-lg z-10 max-h-[90vh] flex flex-col">
 
             {/* Modal Header */}
             <div className="flex justify-between items-center p-6 border-b border-rule flex-shrink-0">
               <h3 className="font-ledger text-[1.125rem] font-semibold text-ink">{text.modalTitle}</h3>
-              <button onClick={handleCloseModal} className="text-ink-soft hover:text-ink transition-colors">
+              <button onClick={() => { setIsModalOpen(false); setSelectedDocId(null); }} className="text-ink-soft hover:text-ink transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -455,7 +473,7 @@ export default function EmployeeDashboard() {
                   </div>
                 </div>
 
-                {/* Language Selector */}
+                {/* Language */}
                 <div>
                   <label className="block text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em] mb-2">{text.labelLanguage}</label>
                   <div className="flex gap-3">
@@ -468,7 +486,7 @@ export default function EmployeeDashboard() {
                   </div>
                 </div>
 
-                {/* Reason Selector */}
+                {/* Reason */}
                 <div>
                   <label className="block text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em] mb-2">{text.labelReason}</label>
                   <div className="relative">
@@ -493,20 +511,17 @@ export default function EmployeeDashboard() {
                       <span className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">{text.labelDocInfo}</span>
                       <div className="h-px flex-1 bg-rule"></div>
                     </div>
-
                     {activeFields.map((field) => (
                       <div key={field.key}>
                         <label className="block text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em] mb-1.5">
                           {appLang === 'TH' ? field.labelTH : field.label}
                           {field.required && <span className="text-status-rejected ml-1">*</span>}
                         </label>
-
                         {field.type === 'select' ? (
                           <div className="relative">
                             <select
-                              id={`field-${field.key}`}
                               value={templateFields[field.key] || ''}
-                              onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                              onChange={(e) => setTemplateFields(prev => ({ ...prev, [field.key]: e.target.value }))}
                               required={field.required}
                               className="w-full border border-rule rounded-lg px-4 py-3 font-medium text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] appearance-none bg-sheet"
                             >
@@ -522,16 +537,15 @@ export default function EmployeeDashboard() {
                             id={`field-${field.key}`}
                             type="date"
                             value={templateFields[field.key] || ''}
-                            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                            onChange={(e) => setTemplateFields(prev => ({ ...prev, [field.key]: e.target.value }))}
                             required={field.required}
                             className="w-full border border-rule rounded-lg px-4 py-3 font-medium text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] bg-sheet"
                           />
                         ) : (
                           <input
-                            id={`field-${field.key}`}
                             type={field.type}
                             value={templateFields[field.key] || ''}
-                            onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                            onChange={(e) => setTemplateFields(prev => ({ ...prev, [field.key]: e.target.value }))}
                             required={field.required}
                             placeholder={appLang === 'TH' ? field.labelTH : field.label}
                             className="w-full border border-rule rounded-lg px-4 py-3 font-medium text-ink placeholder-ink-soft/40 focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] bg-sheet"
@@ -541,20 +555,61 @@ export default function EmployeeDashboard() {
                     ))}
                   </div>
                 )}
+
+                {/* Visa-only fields */}
+                {isVisa && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-px flex-1 bg-rule"></div>
+                      <span className="text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em]">{text.labelVisaInfo}</span>
+                      <div className="h-px flex-1 bg-rule"></div>
+                    </div>
+
+                    {[
+                      { key: 'country_prefer_travel', label: 'Destination Country', labelTH: 'ประเทศปลายทาง', type: 'text' },
+                      { key: 'departure_date',        label: 'Departure Date',      labelTH: 'วันเดินทางออก',    type: 'date' },
+                      { key: 'last_travel_date',      label: 'Return Date',         labelTH: 'วันเดินทางกลับ',   type: 'date' },
+                      { key: 'arrival_date',          label: 'Arrival Date',        labelTH: 'วันที่เดินทางถึง', type: 'date' },
+                      { key: 'on_duty_date',          label: 'First Day Back on Duty', labelTH: 'วันแรกที่กลับมาทำงาน', type: 'date' },
+                    ].map((field) => (
+                      <div key={field.key}>
+                        <label className="block text-[0.6875rem] font-semibold text-ink-soft uppercase tracking-[0.08em] mb-1.5">
+                          {appLang === 'TH' ? field.labelTH : field.label}
+                          <span className="text-status-rejected ml-1">*</span>
+                        </label>
+                        <input
+                          type={field.type}
+                          value={visaFields[field.key as keyof VisaFields]}
+                          onChange={(e) => setVisaFields(prev => ({ ...prev, [field.key]: e.target.value }))}
+                          required
+                          className="w-full border border-rule rounded-lg px-4 py-3 font-medium text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] bg-sheet"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </form>
             </div>
 
             {/* Modal Footer */}
-            <div className="p-6 pt-4 flex gap-3 flex-shrink-0 border-t border-rule">
-              <button type="button" onClick={handleCloseModal} className="flex-1 py-3 px-4 border border-rule text-ink-soft hover:text-ink hover:border-rule-strong font-semibold text-xs uppercase tracking-[0.08em] transition-colors">{text.btnCancel}</button>
-              <button
-                type="submit"
-                form="doc-request-form"
-                disabled={isSubmitting}
-                className="flex-1 py-3 px-4 bg-red text-sheet hover:bg-[#6E1224] font-semibold text-xs uppercase tracking-[0.08em] flex items-center justify-center gap-2 transition-colors active:scale-[0.99]"
-              >
-                {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> …</> : text.btnConfirm}
-              </button>
+            <div className="p-6 pt-4 flex flex-col gap-3 flex-shrink-0 border-t border-rule">
+              {submitError && (
+                <div className="flex items-start gap-2 bg-status-rejected/10 border border-status-rejected/30 text-status-rejected rounded-lg px-4 py-3 text-xs">
+                  <Lock className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <span>{submitError}</span>
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button type="button" onClick={() => { setIsModalOpen(false); setSelectedDocId(null); setSubmitError(null); }} className="flex-1 py-3 px-4 border border-rule text-ink-soft hover:text-ink hover:border-rule-strong font-semibold text-xs uppercase tracking-[0.08em] transition-colors">{text.btnCancel}</button>
+                <button
+                  type="submit"
+                  form="doc-request-form"
+                  disabled={isSubmitting}
+                  className="flex-1 py-3 px-4 bg-red text-sheet hover:bg-[#6E1224] font-semibold text-xs uppercase tracking-[0.08em] flex items-center justify-center gap-2 transition-colors active:scale-[0.99]"
+                >
+                  {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> …</> : text.btnConfirm}
+                </button>
+              </div>
             </div>
           </div>
         </div>

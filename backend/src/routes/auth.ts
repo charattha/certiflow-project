@@ -1,16 +1,11 @@
 import { Hono } from 'hono';
 import { SignJWT } from 'jose';
 import { setCookie, deleteCookie } from 'hono/cookie';
-import { z } from 'zod';
-import { getPrisma } from '../utils/prisma';
 import { validateRequest, schemas } from '../middleware/validator';
 import { authenticateToken } from '../middleware/auth';
-import { AppEnv } from '../types';
+import { getSupabase } from '../utils/supabase';
+import type { AppEnv } from '../types/env';
 
-/**
- * Cloudflare Worker friendly hashing using SubtleCrypto (SHA-256).
- * Standard bcrypt/bcryptjs is often too slow for Worker CPU limits.
- */
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
@@ -22,38 +17,58 @@ async function hashPassword(password: string): Promise<string> {
 const auth = new Hono<AppEnv>();
 
 auth.post('/login', validateRequest(schemas.login), async (c) => {
-  const { email, password } = await c.req.json();
-  const prisma = getPrisma(c.env.DATABASE_URL);
+  if (!c.env.SUPABASE_URL || !c.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[Login] Supabase secrets not configured');
+    return c.json({ error: 'Server configuration error: Supabase secrets missing' }, 500);
+  }
+  if (!c.env.JWT_SECRET) {
+    console.error('[Login] JWT_SECRET not configured');
+    return c.json({ error: 'Server configuration error: JWT_SECRET missing' }, 500);
+  }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    include: { employee: true },
-  });
+  const { email, password } = await c.req.json();
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  let user: any, employee: any;
+  try {
+    const { data: userData, error: userError } = await supabase
+      .from('User')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (userError) throw userError;
+    user = userData;
+
+    if (user) {
+      const { data: empData } = await supabase
+        .from('Employee')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      employee = empData;
+    }
+  } catch (err) {
+    console.error('[Login] Database error:', err);
+    return c.json({ error: 'Database connection failed' }, 500);
+  }
 
   if (!user) {
     return c.json({ error: 'Invalid credentials' }, 401);
   }
 
-  // Check if it's the old bcrypt hash or new SHA-256 hash
-  // Since we are migrating, we'll re-hash the provided password and compare
   const hashedInput = await hashPassword(password);
-  
-  // Basic comparison (In production, use a more secure timing-safe comparison if possible)
-  // For the transition, we check both the seeded bcrypt (starts with $2b$) and the new hash.
-  const isValid = (user.password === hashedInput) || (user.password.startsWith('$2b$') && false); 
-  
-  // NOTE: Because bcrypt is too slow for Workers, we MUST re-seed the DB with SHA-256 hashes.
   if (user.password !== hashedInput) {
-    return c.json({ error: 'Invalid credentials. (Note: Database re-seed required for Worker compatibility)' }, 401);
+    return c.json({ error: 'Invalid credentials' }, 401);
   }
 
   const payload = {
     userId: user.id,
     role: user.role,
-    employeeId: user.employee?.id,
-    empId: user.employee?.employeeId,
-    name: user.employee ? `${user.employee.firstName} ${user.employee.lastName}` : 'Admin',
-    mustChangePassword: user.mustChangePassword,
+    employeeId: employee?.id,
+    empId: employee?.employee_id,
+    name: employee ? `${employee.first_name} ${employee.last_name}` : 'Admin',
+    mustChangePassword: user.must_change_password,
   };
 
   const secret = new TextEncoder().encode(c.env.JWT_SECRET);
@@ -68,22 +83,32 @@ auth.post('/login', validateRequest(schemas.login), async (c) => {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'None' : 'Lax',
-    maxAge: 8 * 60 * 60, // 8 hours in seconds
+    maxAge: 8 * 60 * 60,
     path: '/',
   });
 
   return c.json({ success: true, user: payload, token });
 });
 
-auth.post('/change-password', authenticateToken, validateRequest(schemas.changePassword), async (c) => {
+auth.post('/change-password', authenticateToken, async (c) => {
   const { currentPassword, newPassword } = await c.req.json();
-  const requestor = c.get('user');
-  const prisma = getPrisma(c.env.DATABASE_URL);
-
-  const user = await prisma.user.findUnique({ where: { id: requestor.userId } });
-  if (!user) {
-    return c.json({ error: 'User not found' }, 404);
+  if (!currentPassword || !newPassword) {
+    return c.json({ error: 'currentPassword and newPassword are required' }, 400);
   }
+  if (newPassword.length < 6) {
+    return c.json({ error: 'Password must be at least 6 characters' }, 400);
+  }
+
+  const userId = c.get('user').userId;
+  const supabase = getSupabase(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const { data: user, error } = await supabase
+    .from('User')
+    .select('password')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error || !user) return c.json({ error: 'User not found' }, 404);
 
   const hashedCurrent = await hashPassword(currentPassword);
   if (user.password !== hashedCurrent) {
@@ -91,12 +116,14 @@ auth.post('/change-password', authenticateToken, validateRequest(schemas.changeP
   }
 
   const hashedNew = await hashPassword(newPassword);
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { password: hashedNew, mustChangePassword: false },
-  });
+  const { error: updateError } = await supabase
+    .from('User')
+    .update({ password: hashedNew, must_change_password: false, updated_at: new Date().toISOString() })
+    .eq('id', userId);
 
-  return c.json({ success: true, message: 'Password updated successfully' });
+  if (updateError) return c.json({ error: updateError.message }, 500);
+
+  return c.json({ success: true, message: 'Password changed successfully' });
 });
 
 auth.post('/logout', (c) => {
