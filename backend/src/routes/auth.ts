@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { getPrisma } from '../utils/prisma';
 import { validateRequest, schemas } from '../middleware/validator';
 import { authenticateToken } from '../middleware/auth';
+import { AppEnv } from '../types';
 
 /**
  * Cloudflare Worker friendly hashing using SubtleCrypto (SHA-256).
@@ -18,7 +19,7 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-const auth = new Hono();
+const auth = new Hono<AppEnv>();
 
 auth.post('/login', validateRequest(schemas.login), async (c) => {
   const { email, password } = await c.req.json();
@@ -72,6 +73,30 @@ auth.post('/login', validateRequest(schemas.login), async (c) => {
   });
 
   return c.json({ success: true, user: payload, token });
+});
+
+auth.post('/change-password', authenticateToken, validateRequest(schemas.changePassword), async (c) => {
+  const { currentPassword, newPassword } = await c.req.json();
+  const requestor = c.get('user');
+  const prisma = getPrisma(c.env.DATABASE_URL);
+
+  const user = await prisma.user.findUnique({ where: { id: requestor.userId } });
+  if (!user) {
+    return c.json({ error: 'User not found' }, 404);
+  }
+
+  const hashedCurrent = await hashPassword(currentPassword);
+  if (user.password !== hashedCurrent) {
+    return c.json({ error: 'Current password is incorrect' }, 401);
+  }
+
+  const hashedNew = await hashPassword(newPassword);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { password: hashedNew, mustChangePassword: false },
+  });
+
+  return c.json({ success: true, message: 'Password updated successfully' });
 });
 
 auth.post('/logout', (c) => {

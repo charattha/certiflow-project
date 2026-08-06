@@ -19,9 +19,9 @@ enum Role {
 }
 
 enum RequestStatus {
-  PENDING
-  COMPLETED
-  REJECTED
+  PENDING             // Requested — routed to HR
+  WAITING_FOR_PICKUP  // HR issued the physical document
+  DONE                // Employee picked it up
 }
 
 model User {
@@ -60,9 +60,7 @@ model DocumentRequest {
   docLang        String        // TH or EN
   reason         String        // e.g., financial, visa
   status         RequestStatus @default(PENDING)
-  fileUrl        String?       // URL or path to generated file
-  expiresAt      DateTime?     // When the file should be cleaned up
-  templateFields Json?         // Key-value pairs for .docx placeholder fields
+  templateFields Json?         // Key-value pairs used to fill in the physical document
   employeeId     String
   employee       Employee      @relation(fields: [employeeId], references: [id])
   createdAt      DateTime      @default(now())

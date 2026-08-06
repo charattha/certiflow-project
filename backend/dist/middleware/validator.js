@@ -12,21 +12,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.schemas = exports.validateRequest = void 0;
 const zod_1 = require("zod");
 const validateRequest = (schema) => {
-    return (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    return (c, next) => __awaiter(void 0, void 0, void 0, function* () {
         try {
+            const body = yield c.req.json().catch(() => ({}));
+            const query = c.req.query();
+            const params = c.req.param();
             yield schema.parseAsync({
-                body: req.body,
-                query: req.query,
-                params: req.params,
+                body,
+                query,
+                params,
             });
             return next();
         }
         catch (error) {
-            res.status(400).json({
+            return c.json({
                 success: false,
                 message: 'Validation failed',
                 errors: error instanceof zod_1.z.ZodError ? error.format() : error,
-            });
+            }, 400);
         }
     });
 };
@@ -43,15 +46,21 @@ exports.schemas = {
         body: zod_1.z.object({
             name: zod_1.z.string().min(2, 'Name must be at least 2 characters'),
             email: zod_1.z.string().email('Invalid email address'),
-            password: zod_1.z.string().min(6, 'Password must be at least 6 characters'),
+            password: zod_1.z.string().min(8, 'Password must be at least 8 characters'),
         })
     }),
     registerEmployee: zod_1.z.object({
         body: zod_1.z.object({
             name: zod_1.z.string().min(2, 'Name must be at least 2 characters'),
             email: zod_1.z.string().email('Invalid email address'),
-            password: zod_1.z.string().min(6, 'Password must be at least 6 characters'),
+            password: zod_1.z.string().min(8, 'Password must be at least 8 characters'),
             department: zod_1.z.string().optional(),
+        })
+    }),
+    changePassword: zod_1.z.object({
+        body: zod_1.z.object({
+            currentPassword: zod_1.z.string().min(1, 'Current password is required'),
+            newPassword: zod_1.z.string().min(6, 'New password must be at least 6 characters'),
         })
     })
 };

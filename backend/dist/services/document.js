@@ -9,82 +9,64 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cleanupExpiredDocuments = exports.triggerDocumentGeneration = exports.generateDocument = void 0;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
-const generateDocument = (requestId) => __awaiter(void 0, void 0, void 0, function* () {
-    // Simulate document generation latency (Craftsman Agent Worker)
-    yield new Promise((resolve) => setTimeout(resolve, 1500));
+exports.triggerDocumentGeneration = exports.generateDocument = void 0;
+const prisma_1 = require("../utils/prisma");
+/**
+ * Cloudflare Worker version of document generation.
+ * In a real production environment, this would:
+ * 1. Fetch the .docx template from Supabase Storage or R2.
+ * 2. Fill it using Docxtemplater.
+ * 3. Upload the result back to Supabase Storage or R2.
+ * 4. Return the public URL.
+ */
+const generateDocument = (requestId, env) => __awaiter(void 0, void 0, void 0, function* () {
+    const prisma = (0, prisma_1.getPrisma)(env.DATABASE_URL);
+    const docRequest = yield prisma.documentRequest.findUnique({
+        where: { id: requestId },
+        include: {
+            employee: true,
+        },
+    });
+    if (!docRequest) {
+        throw new Error(`DocumentRequest not found: ${requestId}`);
+    }
     // 3-day file expiration logic
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 3);
-    const request = yield prisma.documentRequest.update({
+    // For now, we simulate success without physical file generation 
+    // until Supabase Storage buckets are configured by the user.
+    const updated = yield prisma.documentRequest.update({
         where: { id: requestId },
         data: {
             status: 'COMPLETED',
-            fileUrl: `/downloads/${requestId}.pdf`,
+            fileUrl: `https://placeholder-url.com/${docRequest.requestId}.docx`,
             expiresAt,
         },
     });
-    return request;
+    return updated;
 });
 exports.generateDocument = generateDocument;
-// Helper for exponential backoff
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
-// Fire and forget wrapper for async document generation with Resilience Backoff
-const triggerDocumentGeneration = (requestId) => __awaiter(void 0, void 0, void 0, function* () {
-    const maxRetries = 3;
+const triggerDocumentGeneration = (requestId, env) => __awaiter(void 0, void 0, void 0, function* () {
+    const maxRetries = 2;
     let attempt = 0;
     while (attempt < maxRetries) {
         try {
-            yield (0, exports.generateDocument)(requestId);
-            console.log(`[Success] Document generated on attempt ${attempt + 1} for request ${requestId}`);
-            return; // successful execution
+            yield (0, exports.generateDocument)(requestId, env);
+            return;
         }
         catch (err) {
             attempt++;
-            console.error(`[Error] Failed to generate document for request ${requestId}. Attempt ${attempt}/${maxRetries}`);
             if (attempt >= maxRetries) {
-                console.error(`[Fatal] Final attempt failed for request ${requestId}. Document generation aborted.`);
-                // In reality, flag this request status as 'FAILED' in db here so Admin can see it
+                const prisma = (0, prisma_1.getPrisma)(env.DATABASE_URL);
+                yield prisma.documentRequest.update({
+                    where: { id: requestId },
+                    data: { status: 'REJECTED' },
+                }).catch(() => { });
                 break;
             }
-            // Exponential backoff: 2s, 4s, 8s...
-            const backoffDelay = Math.pow(2, attempt) * 1000;
-            console.log(`Waiting ${backoffDelay}ms before next retry...`);
-            yield delay(backoffDelay);
+            yield delay(2000);
         }
     }
 });
 exports.triggerDocumentGeneration = triggerDocumentGeneration;
-// Cleanup Service: Logic to handle the 3-day file expiration
-const cleanupExpiredDocuments = () => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const expiredRequests = yield prisma.documentRequest.findMany({
-            where: {
-                expiresAt: {
-                    lt: new Date(),
-                },
-                fileUrl: {
-                    not: null,
-                },
-            },
-        });
-        for (const req of expiredRequests) {
-            // In a real system, we would delete the physical file here (e.g., from AWS S3 or local FS)
-            console.log(`Cleaning up expired document: ${req.fileUrl}`);
-            yield prisma.documentRequest.update({
-                where: { id: req.id },
-                data: {
-                    fileUrl: null, // Remove access
-                },
-            });
-        }
-    }
-    catch (error) {
-        console.error('Error during cleanup service:', error);
-    }
-});
-exports.cleanupExpiredDocuments = cleanupExpiredDocuments;
-// Run cleanup every hour
-setInterval(exports.cleanupExpiredDocuments, 1000 * 60 * 60);

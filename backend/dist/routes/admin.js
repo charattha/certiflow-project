@@ -8,26 +8,30 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const client_1 = require("@prisma/client");
+const hono_1 = require("hono");
 const auth_1 = require("../middleware/auth");
-const document_1 = require("../services/document");
-const errorHandler_1 = require("../middleware/errorHandler");
 const logger_1 = require("../utils/logger");
-const bcrypt_1 = __importDefault(require("bcrypt"));
+const prisma_1 = require("../utils/prisma");
 const zod_1 = require("zod");
-const router = express_1.default.Router();
-const prisma = new client_1.PrismaClient();
-// Only Super Admin and General Admin
-router.use(auth_1.authenticateToken, (0, auth_1.requireRole)(['SUPER_ADMIN', 'GENERAL_ADMIN']));
-// Build Admin APIs to query all users
-router.get('/users', (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { role } = req.query;
+/**
+ * Cloudflare Worker friendly hashing using SubtleCrypto (SHA-256).
+ */
+function hashPassword(password) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = yield crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    });
+}
+const admin = new hono_1.Hono();
+admin.use('*', auth_1.authenticateToken, (0, auth_1.requireRole)(['SUPER_ADMIN', 'GENERAL_ADMIN']));
+admin.get('/users', (c) => __awaiter(void 0, void 0, void 0, function* () {
+    const role = c.req.query('role');
     const whereClause = role ? { role: role } : {};
+    const prisma = (0, prisma_1.getPrisma)(c.env.DATABASE_URL);
     const users = yield prisma.user.findMany({
         where: whereClause,
         select: {
@@ -39,133 +43,174 @@ router.get('/users', (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(vo
         },
         orderBy: { createdAt: 'desc' },
     });
-    res.json(users);
-})));
-// Build Admin APIs to query all DOCUMENT_REQUESTS
-router.get('/requests', (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    return c.json(users);
+}));
+admin.get('/requests', (c) => __awaiter(void 0, void 0, void 0, function* () {
+    const prisma = (0, prisma_1.getPrisma)(c.env.DATABASE_URL);
     const requests = yield prisma.documentRequest.findMany({
         include: {
             employee: true,
         },
         orderBy: { createdAt: 'desc' },
     });
-    res.json(requests);
-})));
-router.post('/requests/:id/trigger', (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const id = req.params.id;
-    if (typeof id !== 'string')
-        return res.status(400).json({ error: 'Invalid ID format' });
-    const request = yield prisma.documentRequest.findUnique({
-        where: { id },
-        include: { employee: true },
-    });
+    return c.json(requests);
+}));
+// HR issues the physical document -> PENDING becomes WAITING_FOR_PICKUP.
+admin.post('/requests/:id/issue', (c) => __awaiter(void 0, void 0, void 0, function* () {
+    const id = c.req.param('id');
+    const user = c.get('user');
+    const prisma = (0, prisma_1.getPrisma)(c.env.DATABASE_URL);
+    const request = yield prisma.documentRequest.findUnique({ where: { id } });
     if (!request)
-        return res.status(404).json({ error: 'Request not found' });
-    // Admins can trigger/reprint documents
-    const updatedRequest = yield (0, document_1.generateDocument)(request.id);
-    res.json({ message: 'Document triggered successfully', request: updatedRequest });
-})));
-// Hierarchical Password Reset
-router.post('/users/:id/reset-password', (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
-    const targetId = req.params.id;
-    const requestorRole = req.user.role;
-    const requestorId = req.user.userId || req.user.id; // Support both token variants depending on sign-in
+        return c.json({ error: 'Request not found' }, 404);
+    if (request.status !== 'PENDING') {
+        return c.json({ error: `Cannot issue a request in ${request.status} status` }, 400);
+    }
+    const updatedRequest = yield prisma.documentRequest.update({
+        where: { id },
+        data: { status: 'WAITING_FOR_PICKUP' },
+    });
+    yield logger_1.SystemLogger.logAction(user.userId, user.role, 'REQUEST_ISSUED', id, {
+        requestId: request.requestId,
+    }, c.env);
+    return c.json({ message: 'Document marked as issued — waiting for pickup', request: updatedRequest });
+}));
+// Employee has picked up the physical document -> WAITING_FOR_PICKUP becomes DONE.
+admin.post('/requests/:id/pickup', (c) => __awaiter(void 0, void 0, void 0, function* () {
+    const id = c.req.param('id');
+    const user = c.get('user');
+    const prisma = (0, prisma_1.getPrisma)(c.env.DATABASE_URL);
+    const request = yield prisma.documentRequest.findUnique({ where: { id } });
+    if (!request)
+        return c.json({ error: 'Request not found' }, 404);
+    if (request.status !== 'WAITING_FOR_PICKUP') {
+        return c.json({ error: `Cannot confirm pickup for a request in ${request.status} status` }, 400);
+    }
+    const updatedRequest = yield prisma.documentRequest.update({
+        where: { id },
+        data: { status: 'DONE' },
+    });
+    yield logger_1.SystemLogger.logAction(user.userId, user.role, 'REQUEST_PICKED_UP', id, {
+        requestId: request.requestId,
+    }, c.env);
+    return c.json({ message: 'Pickup confirmed', request: updatedRequest });
+}));
+admin.post('/users/:id/reset-password', (c) => __awaiter(void 0, void 0, void 0, function* () {
+    const targetId = c.req.param('id');
+    const user = c.get('user');
+    const requestorRole = user.role;
+    const requestorId = user.userId;
+    const prisma = (0, prisma_1.getPrisma)(c.env.DATABASE_URL);
     const targetUser = yield prisma.user.findUnique({
         where: { id: targetId },
         include: { employee: true }
     });
     if (!targetUser)
-        return res.status(404).json({ error: 'User not found' });
-    // 1. Hierarchy Check
+        return c.json({ error: 'User not found' }, 404);
     if (requestorRole === 'GENERAL_ADMIN' && targetUser.role !== 'EMPLOYEE') {
-        return res.status(403).json({ error: 'Forbidden: General Admins can only reset Employee passwords' });
+        return c.json({ error: 'Forbidden: General Admins can only reset Employee passwords' }, 403);
     }
-    // 2. Determine New Password (last 6 of thai_id, or default if no thai_id)
-    let newPassword = 'password123';
-    if (((_a = targetUser.employee) === null || _a === void 0 ? void 0 : _a.thai_id) && targetUser.employee.thai_id.length >= 6) {
-        newPassword = targetUser.employee.thai_id.slice(-6);
-    }
-    // 3. Hash and Update
-    const hashedPassword = yield bcrypt_1.default.hash(newPassword, 10);
+    let rawIdSource = '';
+    const employee = targetUser.employee;
+    if (employee === null || employee === void 0 ? void 0 : employee.thai_id)
+        rawIdSource = employee.thai_id;
+    else if (employee === null || employee === void 0 ? void 0 : employee.passport_no)
+        rawIdSource = employee.passport_no;
+    const newPassword = rawIdSource.length >= 6 ? rawIdSource.slice(-6) : 'admin123';
+    const hashedPassword = yield hashPassword(newPassword);
     yield prisma.user.update({
         where: { id: targetId },
         data: {
             password: hashedPassword,
             failedLoginAttempts: 0,
-            lockoutUntil: null
+            lockoutUntil: null,
+            mustChangePassword: true
         }
     });
-    // 4. Audit Log
     yield logger_1.SystemLogger.logAction(requestorId, requestorRole, 'PASSWORD_RESET', targetId, {
         targetRole: targetUser.role
-    });
-    // Note: Session invalidation requires a token blacklist or refreshing JWT secrets. 
-    // For now, updating the password resets their login flow on the next token expiry.
-    res.json({ message: 'Password reset successfully', defaultPassword: newPassword });
-})));
-// Bulk Employee Upsert Zod Schema
-const employeeBulkSchema = zod_1.z.array(zod_1.z.object({
-    emp_id: zod_1.z.string().min(1),
-    first_name: zod_1.z.string().min(1),
-    last_name: zod_1.z.string().min(1),
+    }, c.env);
+    return c.json({ message: 'Password reset successfully', defaultPassword: newPassword });
+}));
+const singleUserSchema = zod_1.z.object({
+    email: zod_1.z.string().email(),
+    role: zod_1.z.enum(['EMPLOYEE', 'GENERAL_ADMIN', 'SUPER_ADMIN']),
+    emp_id: zod_1.z.string().optional(),
+    first_name: zod_1.z.string().optional(),
+    last_name: zod_1.z.string().optional(),
     thai_id: zod_1.z.string().optional(),
+    passport_no: zod_1.z.string().optional(),
     department: zod_1.z.string().optional(),
     position: zod_1.z.string().optional(),
-    email: zod_1.z.string().email()
-}));
-// Bulk Employee Upsert
-router.post('/employees/bulk', (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const requestorRole = req.user.role;
-    const requestorId = req.user.userId || req.user.id;
-    // Validate Input
-    const result = employeeBulkSchema.safeParse(req.body);
-    if (!result.success)
-        return res.status(400).json({ error: 'Invalid payload schema', details: result.error.errors });
-    const employees = result.data;
-    let upsertedCount = 0;
-    // Execute in a transaction to ensure atomicity
-    yield prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
-        for (const emp of employees) {
-            // Upsert the User record first
-            const defaultPassword = emp.thai_id && emp.thai_id.length >= 6 ? emp.thai_id.slice(-6) : 'password123';
-            const hashedPassword = yield bcrypt_1.default.hash(defaultPassword, 10);
-            const user = yield tx.user.upsert({
-                where: { email: emp.email },
-                update: {}, // Don't override existing passwords if they exist
-                create: {
-                    email: emp.email,
-                    password: hashedPassword,
-                    role: 'EMPLOYEE'
-                }
-            });
-            // Upsert the Employee record
-            yield tx.employee.upsert({
-                where: { employeeId: emp.emp_id },
-                update: {
-                    firstName: emp.first_name,
-                    lastName: emp.last_name,
-                    thai_id: emp.thai_id,
-                    department: emp.department,
-                    position: emp.position,
-                },
-                create: {
-                    employeeId: emp.emp_id,
-                    firstName: emp.first_name,
-                    lastName: emp.last_name,
-                    thai_id: emp.thai_id,
-                    department: emp.department,
-                    position: emp.position,
+});
+admin.post('/users', (c) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = c.get('user');
+    const requestorRole = user.role;
+    const requestorId = user.userId;
+    const prisma = (0, prisma_1.getPrisma)(c.env.DATABASE_URL);
+    const body = yield c.req.json();
+    const result = singleUserSchema.safeParse(body);
+    if (!result.success) {
+        return c.json({ error: 'Invalid payload', details: result.error.format() }, 400);
+    }
+    const { email, role, emp_id, first_name, last_name, thai_id, passport_no, department, position } = result.data;
+    if (role === 'SUPER_ADMIN') {
+        return c.json({ error: 'Forbidden: Super Admins must be created via direct database access' }, 403);
+    }
+    if (requestorRole === 'GENERAL_ADMIN' && role !== 'EMPLOYEE') {
+        return c.json({ error: 'Forbidden: General Admins can only create Employees' }, 403);
+    }
+    const existingUser = yield prisma.user.findUnique({ where: { email } });
+    if (existingUser)
+        return c.json({ error: 'User with this email already exists' }, 400);
+    const rawIdSource = thai_id || passport_no || '';
+    const defaultPassword = rawIdSource.length >= 6 ? rawIdSource.slice(-6) : 'admin123';
+    const hashedPassword = yield hashPassword(defaultPassword);
+    const newUser = yield prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+        const user = yield tx.user.create({
+            data: {
+                email,
+                password: hashedPassword,
+                role,
+            }
+        });
+        if (role === 'EMPLOYEE' || emp_id) {
+            yield tx.employee.create({
+                data: {
+                    employeeId: emp_id || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+                    firstName: first_name || 'New',
+                    lastName: last_name || 'Employee',
+                    thai_id,
+                    passport_no,
+                    department,
+                    position,
                     userId: user.id
                 }
             });
-            upsertedCount++;
         }
+        return user;
     }));
-    // Log Action
-    yield logger_1.SystemLogger.logAction(requestorId, requestorRole, 'BULK_UPSERT', undefined, {
-        count: upsertedCount
-    });
-    res.json({ message: `Successfully upserted ${upsertedCount} employees` });
-})));
-exports.default = router;
+    yield logger_1.SystemLogger.logAction(requestorId, requestorRole, 'USER_CREATED', newUser.id, { role }, c.env);
+    return c.json({ message: 'User created successfully', userId: newUser.id, defaultPassword }, 201);
+}));
+admin.delete('/users/:id', (0, auth_1.requireRole)(['SUPER_ADMIN']), (c) => __awaiter(void 0, void 0, void 0, function* () {
+    const targetId = c.req.param('id');
+    const user = c.get('user');
+    const requestorId = user.userId;
+    const prisma = (0, prisma_1.getPrisma)(c.env.DATABASE_URL);
+    const targetUser = yield prisma.user.findUnique({ where: { id: targetId } });
+    if (!targetUser)
+        return c.json({ error: 'User not found' }, 404);
+    if (targetUser.role === 'SUPER_ADMIN') {
+        return c.json({ error: 'Forbidden: Super Admins can only be deleted via direct database access' }, 403);
+    }
+    if (targetId === requestorId)
+        return c.json({ error: 'Self-deletion is not permitted' }, 400);
+    yield prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+        yield tx.employee.deleteMany({ where: { userId: targetId } });
+        yield tx.user.delete({ where: { id: targetId } });
+    }));
+    yield logger_1.SystemLogger.logAction(requestorId, 'SUPER_ADMIN', 'USER_DELETED', targetId, undefined, c.env);
+    return c.json({ message: 'User deleted successfully from database' });
+}));
+exports.default = admin;

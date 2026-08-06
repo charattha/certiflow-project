@@ -15,14 +15,12 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/adapter-pg": "^5.8.1",
     "@prisma/client": "^5.10.2",
     "bcryptjs": "^3.0.3",
-    "docxtemplater": "^3.68.7",
     "hono": "^4.12.18",
     "jose": "^6.2.3",
     "pg": "^8.20.0",
-    "pizzip": "^3.2.0",
     "rate-limiter-flexible": "^9.1.1",
     "zod": "^4.3.6"
   },

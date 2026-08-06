@@ -8,15 +8,9 @@ import employeeRoutes from './routes/employee';
 import adminRoutes from './routes/admin';
 
 import { errorHandler } from './middleware/errorHandler';
+import { AppEnv } from './types';
 
-const app = new Hono<{
-  Bindings: {
-    DATABASE_URL: string;
-    JWT_SECRET: string;
-    FRONTEND_URL: string;
-    NODE_ENV: string;
-  }
-}>();
+const app = new Hono<AppEnv>();
 
 // Middlewares
 app.use('*', logger());

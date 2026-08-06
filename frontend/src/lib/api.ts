@@ -1,9 +1,10 @@
 import axios from 'axios';
 
 /**
- * Hardcoded backend URL for Cloudflare Worker deployment.
+ * Backend URL. Defaults to the Cloudflare Worker deployment; override via
+ * VITE_API_URL at build time for local/docker environments.
  */
-const BACKEND_URL = 'https://certiflow-backend.certiflow.workers.dev';
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://certiflow-backend.certiflow.workers.dev';
 
 const api = axios.create({
   baseURL: BACKEND_URL,

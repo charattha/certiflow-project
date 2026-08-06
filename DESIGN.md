@@ -1,52 +1,44 @@
 ---
-name: Marriott Marquis Bangkok Recruiting
-description: The recruiting console as a grand-hotel guest ledger — ruled, engraved, brass on ivory.
+name: Marriott Marquis Bangkok Queen's Park — CertiFlow
+description: The property's internal HR console as a modern hotel operating standard — red, black, and grey, drawn from the real Marriott Marquis Bangkok Queen's Park lockup.
 colors:
-  ink: "#211C14"
-  ink-soft: "#5C5342"
-  paper: "#F1EADB"
-  sheet: "#FBF8F0"
-  sheet-alt: "#F5EFE1"
-  rule: "#DED3BC"
-  rule-strong: "#C7B996"
-  brass: "#8A6D1F"
-  brass-bright: "#C9A84C"
-  binding: "#241D16"
-  binding-soft: "#3A2F24"
-  status-pending: "#8A6410"
-  status-interview: "#2C5578"
-  status-approved: "#3E6B4A"
-  status-completed: "#6A4B86"
-  status-rejected: "#9B3B36"
-  emboss-light: "rgba(255,255,255,0.55)"
-  emboss-dark: "rgba(0,0,0,0.45)"
+  ink: "#1B1B1D"
+  ink-soft: "#6B6B70"
+  paper: "#F5F5F6"
+  sheet: "#FFFFFF"
+  sheet-alt: "#F8F8F9"
+  rule: "#E4E4E7"
+  rule-strong: "#D0D0D5"
+  red: "#9A1B32"
+  red-dark: "#6E1224"
+  red-bright: "#C41230"
+  binding: "#141416"
+  binding-soft: "#26262A"
+  status-pending: "#B45309"
+  status-interview: "#2563EB"
+  status-approved: "#15803D"
+  status-completed: "#7C3AED"
+  status-rejected: "#52525B"
 typography:
-  crest:
-    fontFamily: "Cinzel, 'Noto Serif Thai', Georgia, serif"
-    fontSize: "0.95rem"
-    fontWeight: 600
-    lineHeight: 1.1
-    letterSpacing: "0.16em"
   display:
-    fontFamily: "Spectral, 'Noto Serif Thai', Georgia, serif"
+    fontFamily: "Inter, 'Noto Sans Thai', system-ui, sans-serif"
     fontSize: "clamp(1.6rem, 3vw, 2.2rem)"
-    fontWeight: 500
-    lineHeight: 1.1
+    fontWeight: 700
+    lineHeight: 1.15
     letterSpacing: "-0.01em"
   title:
-    fontFamily: "Spectral, 'Noto Serif Thai', Georgia, serif"
+    fontFamily: "Inter, 'Noto Sans Thai', system-ui, sans-serif"
     fontSize: "1.125rem"
     fontWeight: 600
     lineHeight: 1.2
-    letterSpacing: "-0.01em"
   figure:
-    fontFamily: "Spectral, Georgia, serif"
+    fontFamily: "Inter, system-ui, sans-serif"
     fontSize: "clamp(1.9rem, 4vw, 2.6rem)"
-    fontWeight: 600
+    fontWeight: 700
     lineHeight: 1
     letterSpacing: "-0.02em"
   head:
-    fontFamily: "Spectral, 'Noto Serif Thai', Georgia, serif"
+    fontFamily: "Inter, 'Noto Sans Thai', system-ui, sans-serif"
     fontSize: "0.72rem"
     fontWeight: 600
     lineHeight: 1.2
@@ -68,9 +60,9 @@ typography:
     fontWeight: 400
     lineHeight: 1.4
 rounded:
-  none: "0px"
-  sm: "2px"
-  md: "3px"
+  sm: "6px"
+  md: "8px"
+  lg: "12px"
 spacing:
   xs: "4px"
   sm: "8px"
@@ -80,15 +72,17 @@ spacing:
   xxl: "64px"
 components:
   button-primary:
-    backgroundColor: "{colors.brass}"
+    backgroundColor: "{colors.red}"
     textColor: "{colors.sheet}"
-    rounded: "{rounded.sm}"
-    padding: "9px 18px"
+    rounded: "{rounded.md}"
+    padding: "12px 18px"
+  button-primary-hover:
+    backgroundColor: "{colors.red-dark}"
   button-secondary:
     backgroundColor: "{colors.sheet}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.sm}"
-    padding: "8px 17px"
+    rounded: "{rounded.md}"
+    padding: "11px 17px"
   status-seal:
     backgroundColor: "{colors.sheet}"
     textColor: "{colors.ink}"
@@ -96,189 +90,172 @@ components:
     padding: "2px 8px"
 ---
 
-# Design System: Marriott Marquis Bangkok Recruiting
+# Design System: Marriott Marquis Bangkok Queen's Park — CertiFlow
 
-<!-- First implementation of a replacement world (was Microsoft FluentUI). Tokens below are
-     committed by the Dashboard/Role Center build; re-run /impeccable document to re-scan after
-     the world rolls out to the remaining pages. Brand crest + wordmark are LABELED PLACEHOLDERS
-     until official Marriott Marquis Bangkok assets are supplied. -->
+<!-- Second implementation of the visual world (was "The Concierge Ledger": ivory/brass,
+     Cinzel-engraved antique register). Replaced at the user's explicit direction to move
+     to a modern identity in the property's real red/black/grey, built from the supplied
+     Marriott Marquis Bangkok Queen's Park lockup (IMG_5609). The real lockup image ships at
+     public/marriott-marquis-logo.png and is used everywhere it sits on a light surface (the
+     login screen). Its wordmark is printed in black, so it can't sit on the dark nav band —
+     there, src/components/MarriottLogo.tsx falls back to a redrawn "M" mark + CertiFlow
+     wordmark that can recolor for the dark background and favicon scale. -->
 
 ## Overview
 
-**Creative North Star: "The Concierge Ledger"**
+**Creative North Star: "The House Standard"**
 
-The recruiting console is the grand hotel's guest ledger — the leather-bound register a
-front desk keeps of everyone who passes through. Recruitment *is* a check-in: a candidate
-signs the register, is entered as a ruled line, and is advanced through the house until a
-decision. The interface refuses the two ruts this category ships: the generic SaaS dashboard
-(sidebar, KPI cards, blue accent) and the dark-gold "luxury" glamour skin. Instead it is
-literally a page of a ledger — warm ivory stock, hairline ruling, engraved heads, brass
-structure, and figures set like column totals at the head of the sheet.
+CertiFlow is the property's internal HR console, so it earns the visual authority of the
+document every department already trusts: the hotel's own operating standard — the crisp,
+red-tabbed binder that tells staff exactly how the house runs. Not a public marketing surface,
+not a warm heritage artifact: a clean, confident, corporate tool that happens to be printed in
+the property's own colors, because it belongs to the property.
 
-The register is a working document, not a museum piece. Ruling and engraving are *structure*
-that speeds scanning, never ornament laid over a SaaS table. It is bilingual by birthright —
-hotel ledgers were always kept in two scripts — so Thai and English are set with equal care,
-serif paired with serif, sans with sans.
+The interface refuses two ruts: the generic blue-accent SaaS dashboard that could belong to any
+company, and the previous world's antique-ledger romance (ivory paper, engraved serif, brass
+hairlines), which read as a costume rather than the actual brand. Red is the one color this
+system spends deliberately — on primary actions, the active nav mark, and the brand lockup —
+never on status, so it stays legible as "this is the property," not "this failed."
 
 **Key Characteristics:**
-- Warm ivory paper ground; ink text; a single brass accent held in reserve.
-- Everything is ruled: hairlines, not boxes; totals, not cards.
-- Engraved serif heads (Cinzel/Spectral) over a workhorse data sans (Inter / Noto Sans Thai).
-- Orthogonal and sharp — near-zero radius; the page is a sheet, not a bubble.
-- Flat by default; depth is the sheet lifting off the desk, not drop-shadowed cards.
+- White and light-grey surfaces, near-black text and navigation, one maroon-red accent held in reserve for brand and primary action.
+- A single modern sans (Inter, paired with Noto Sans Thai) carries every role — no serif, no engraved caps.
+- Soft, confident corners (8px controls, 12px cards) — considered, not sharp, not bubbly.
+- Flat, quiet elevation: a soft neutral shadow lifts cards off the grey canvas; nothing glows.
+- The real Marriott Marquis Bangkok Queen's Park lockup anchors the login screen; a compact mark + wordmark rides the nav on every other screen.
 
 ## Colors
 
-A warm ivory-and-ink ledger palette with one brass voice and five ink-drawn status seals.
+A restrained neutral palette — white, near-black, and warm grey — with one maroon-red accent carried at page scale only where the property's brand or a primary action lives.
 
 ### Primary
-- **Brass** (#8A6D1F): the single structural accent — primary buttons, active tab underline,
-  the gilt hairline on the binding, head rules. Deep enough to read as text on ivory.
-- **Brass Bright** (#C9A84C): the luminous Marriott gold, reserved for *large* edges, the
-  active rail, and focus rings. Never used for small text (fails contrast on ivory).
+- **Marriott Red** (#9A1B32): the property's brand color and the system's one accent — primary buttons, the active nav underline, the login lockup, focus rings, and the CertiFlow "M" mark. Nowhere else.
+- **Red Dark** (#6E1224): hover/active state for red-filled controls.
+- **Red Bright** (#C41230): reserved for large, bright brand moments (the lockup's boxed "MARQUIS" and the mobile nav's active label) — never small body text.
 
 ### Neutral
-- **Ink** (#211C14): primary text — a warm near-black, the fountain-pen line.
-- **Ink Soft** (#5C5342): secondary text and captions — a warm taupe tinted from the ground,
-  never a cold gray.
-- **Paper** (#F1EADB): the desk/canvas the sheets rest on.
-- **Sheet** (#FBF8F0): the ledger page surface where data lives.
-- **Sheet Alt** (#F5EFE1): alternating row tint for scan rhythm.
-- **Rule** (#DED3BC) / **Rule Strong** (#C7B996): hairline ruling and section rules.
-- **Binding** (#241D16): the leather spine — the top navigation band; ivory text sits on it.
-- **Emboss Light / Dark** (rgba white 0.55 / black 0.45): a 1px letterpress *highlight*
-  on ivory display heads and figures, and an engrave *shadow* on the dark binding crest —
-  the world's tactile devices, applied as `text-shadow`, never as fills.
+- **Ink** (#1B1B1D): primary text and the nav/binding band — a true near-black, not the previous world's warm sepia.
+- **Ink Soft** (#6B6B70): secondary text, captions, and meta — a neutral grey, deliberately not tinted warm; this is a corporate tool, not a paper artifact.
+- **Paper** (#F5F5F6): the page canvas.
+- **Sheet** (#FFFFFF) / **Sheet Alt** (#F8F8F9): card surfaces and alternating row tint.
+- **Rule** (#E4E4E7) / **Rule Strong** (#D0D0D5): hairline borders and section dividers.
+- **Binding** (#141416) / **Binding Soft** (#26262A): the top navigation band and its mobile submenu.
 
 ### Status seals (labeled beyond color)
-- **Pending** (#8A6410, ochre) · **Interview** (#2C5578, ink blue) · **Approved / Hired / Active**
-  (#3E6B4A, ledger green) · **Completed** (#6A4B86, violet seal) · **Not proceeding / Rejected**
-  (#9B3B36, oxblood).
+- **Pending** (#B45309, amber) · **Interview** (#2563EB, blue) · **Approved / Active**
+  (#15803D, green) · **Completed (role seal)** (#7C3AED, violet) · **Rejected / declined**
+  (#52525B, neutral charcoal — deliberately not red).
 
 ### Named Rules
-**The One Brass Rule.** Brass carries structure and a single action per view. If a screen has
-two brass buttons competing, one is wrong. Its scarcity is what makes the ledger feel valuable.
-**The Ink-Never-Gray Rule.** Secondary text tints from the paper's warmth (Ink Soft), never a
-neutral gray. A cold gray on this ground reads as a different, cheaper document.
+**The One Red Rule.** Red means "this property" or "do this now" — brand and primary action
+only. Status, error, and destructive states use their own hues (amber/blue/green/violet/charcoal),
+never red, so a red element is never mistaken for a warning.
+**The Flat-Grey Rule.** Secondary text and dividers are neutral grey, not warm-tinted. This is a
+corporate standard, not a heritage document — warmth would pull it back toward the discarded
+antique world.
 
 ## Typography
 
-**Crest Font:** Cinzel (inscriptional Roman caps) — the property wordmark/crest only.
-**Display / Serif Font:** Spectral (with Noto Serif Thai for Thai) — page titles, ledger names,
-column totals, ruled heads.
-**Body / Data Font:** Inter (with Noto Sans Thai for Thai) — all data, controls, and UI text;
-tabular figures for aligned numerals.
+**Display / Body / Label Font:** Inter (with Noto Sans Thai for Thai) — one sans family for
+every role, no serif anywhere in this world.
 
-**Character:** an engraver's serif over a clean operational sans — the plate on the desk and the
-clerk's hand in the columns. Thai is set serif-with-serif and sans-with-sans so neither script
-feels bolted on.
+**Character:** a single clean geometric-leaning sans, set with confident weight steps (700 for
+figures and titles, 600 for heads and labels, 400 for body) rather than a second typeface, so the
+system reads as one voice at every scale. Thai and English share the same sans treatment.
 
 ### Hierarchy
-- **Crest** (600, 0.95rem, 0.16em tracking, caps): the property nameplate on the binding.
-- **Display** (500, clamp 1.6–2.2rem): page title ("Role Center").
-- **Title** (600, 1.125rem): sub-titles, empty-state headings, and emphasized entry
-  names on stacked mobile slips — a serif step between Display and Body.
-- **Figure** (600, clamp 1.9–2.6rem, tabular): the balance-strip totals.
-- **Head** (600, 0.72rem, 0.14em tracking, small-caps feel): ruled column/section heads.
-- **Body** (400, 0.875rem, 1.5): ledger entries and controls; measure capped ~70ch in prose.
-- **Label** (600, 0.6875rem, 0.08em): status seals, line numbers, meta.
-- **Small** (400, 0.8125rem): control + meta text — position tags, inline status
-  selects, pagination info, and contact lines on register rows.
+- **Display** (700, clamp 1.6–2.2rem, -0.01em): page titles ("Role Center").
+- **Title** (600, 1.125rem): sub-titles, modal headings, emphasized entries.
+- **Figure** (700, clamp 1.9–2.6rem, tabular, -0.02em): stat-strip totals.
+- **Head** (600, 0.72rem, 0.14em tracking, caps): table/column heads and section labels.
+- **Body** (400, 0.875rem, 1.5): all data, controls, and prose.
+- **Label** (600, 0.6875rem, 0.08em): status seals, tags, meta.
+- **Small** (400, 0.8125rem): pagination, inline meta.
 
 ### Named Rules
-**The Serif-Heads Rule.** Every head and every figure is serif; every datum and control is sans.
-The eye learns the register in one glance.
+**The One-Voice Rule.** Every role is Inter. Hierarchy comes from weight and size, never from
+switching typefaces — the discipline that keeps a red-and-black system from feeling loud.
 
 ## Layout
 
-A single centered ledger spread, max-width 1180px, resting on the paper canvas. The page is
-built from **ruled bands**, not cards: a binding nav, a page title row, a ruled balance strip
-of totals, then the register (the entries table). Vertical rhythm is one 8px scale
-(xs4 / sm8 / md16 / lg24 / xl40 / xxl64) with more space above a head than below it. Data density
-is high — this is a work tool — but every group is separated by a hairline, not a gap alone.
-Responsive: below ~720px the spread collapses; the balance strip becomes a 2×2 total block and
-each register row restates as a stacked ledger slip (label:value pairs) so nothing is lost.
+Unchanged from the established app shell: a centered content column (max-width 1180px) on the
+paper canvas, built from stacked sections with the 8px spacing scale (xs4/sm8/md16/lg24/xl40/xxl64).
+Content lives on white sheets with visible hairline borders; a stat strip of totals sits above
+the main register/table on dashboard views. Responsive behavior (stat strip to 2×2 block, table
+to stacked cards below ~768px) is preserved from the prior implementation.
 
 ## Elevation & Depth
 
-Flat by default. Depth is conveyed by ruling and paper tint, not by floating cards. The one
-physical metaphor is a **sheet resting on a desk**: a single soft, warm shadow lifts the sheet
-off the canvas. Overlays (modals, menus) deepen it. Never a zero-offset colored halo.
+Flat by default, with a single soft neutral shadow lifting sheets off the grey canvas — no warm
+tint, no colored glow. Overlays (modals) use a deeper version of the same neutral shadow.
 
 ### Shadow Vocabulary
-- **Sheet** (`box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 10px 28px -18px rgba(36,29,22,0.30)`):
-  the ledger page on the desk.
-- **Overlay** (`box-shadow: 0 24px 60px -20px rgba(36,29,22,0.45)`): menus, modals.
+- **Sheet** (`box-shadow: 0 1px 2px 0 rgba(20,20,22,0.04), 0 6px 20px -8px rgba(20,20,22,0.10)`):
+  cards, tables, panels at rest.
+- **Overlay** (`box-shadow: 0 24px 60px -20px rgba(20,20,22,0.35)`): modals.
 
 ### Named Rules
-**The No-Float Rule.** Data never sits in its own drop-shadowed card. If it needs separation,
-rule it. Shadow belongs to the whole sheet, never to a row or a stat.
+**The No-Glow Rule.** Shadows are neutral black at low opacity. A colored or zero-offset shadow
+reads as decoration, not depth.
 
 ## Shapes
 
-Orthogonal and ruled. Corners are sharp (0px) on the sheet, rules, and table; controls take a
-hair of softening (sm 2px, md 3px) so they read as pressed brass, not rounded pills. Borders are
-hairlines (1px `rule`); a head or total carries a 1.5–2px `rule-strong` or brass rule beneath it.
-The ledger's structural left margin rule (a thin brass/rule double line down the sheet edge) is a
-world-native device, not a decorative colored border.
+Considered softness, not sharpness: cards, modals, and their table containers take a 12px
+radius (`rounded-xl`); inputs and buttons take 8px (`rounded-lg`). Borders are 1px hairlines in
+`rule`; a table header or totals row carries a 2px `rule-strong` underline. This is a deliberate
+move away from the prior world's near-zero "ledger" radius — softness is part of what makes the
+system read as modern rather than archival.
 
 ## Components
 
 ### Buttons
-- **Shape:** near-square (2px radius).
-- **Primary:** brass fill (#8A6D1F), ivory text (#FBF8F0), 9px/18px padding, label in 0.08em caps.
-- **Secondary:** ivory sheet, 1px brass hairline, ink text.
-- **Hover / Focus:** primary deepens toward #6B560E and lifts 1px; focus shows a 2px brass-bright
-  ring offset from the control. Ghost = ink text, no fill, brass underline on hover.
+- **Shape:** 8px radius.
+- **Primary:** red fill (#9A1B32), white text, 12px/18px padding, 0.08em uppercase label.
+- **Hover:** deepens to Red Dark (#6E1224).
+- **Secondary:** white sheet, 1px `rule` border, ink text; hover border deepens to `rule-strong`.
+- **Focus:** red border plus a 2px red inset underline; no glow ring.
 
-### Tabs / Track rail
-- Text tabs (Full-time / Internship) in Head style; the active tab carries a **brass underline
-  bar** that slides between tabs. Switching tracks turns the register page (see signature).
-
-### Cards / Containers → Sheets
-- **There are no cards.** Content lives on one **sheet**: ivory (#FBF8F0), sharp corners, the
-  Sheet shadow, an inset hairline (1px `rule`). Internal padding lg (24px).
+### Cards / Containers
+- **Corner:** 12px radius, clipped (`overflow-hidden`) so tables and headers inherit it.
+- **Background:** white sheet on the grey paper canvas.
+- **Shadow:** Sheet (see Elevation).
+- **Border:** 1px `rule` hairline.
 
 ### Inputs / Fields
-- Ivory sheet, 1px `rule` border, 2px radius, ink text. **Focus:** border → brass and a brass
-  underline thickens; no glow. Error: oxblood border + oxblood helper text naming the fix.
+- **Style:** white sheet, 1px `rule` border, 8px radius.
+- **Focus:** border → red, plus a 2px red inset underline (no glow).
+- **Error:** charcoal/status-rejected border and helper text naming the fix.
 
 ### Navigation (the Binding)
-- A dark leather band (#241D16), 52px, sticky, with a **gilt hairline** (brass) along its bottom
-  edge. Crest wordmark left (Cinzel, ivory), track/section links center in Label caps with a brass
-  underline on the active route, user register (name + role) right. Mobile: links collapse behind
-  a ledger-tab menu; the crest and user remain.
+- A near-black band (#141416), 52px, sticky, 2px red hairline along its bottom edge. The
+  CertiFlow wordmark + Marriott Marquis mark sit left (compact lockup), route links center in
+  Label caps with a red underline on the active route, user identity + sign-out right. Mobile:
+  links collapse into a near-black submenu; active links read in Red Bright.
 
-### Status Seal (signature)
-- A small stamped chip: a 6px status **dot** + the status word in Label caps, on a faint tint of
-  its own hue with a 1px tint border. Color is never the only signal — the word is always present.
+### Status Seal
+- A 6px status dot + the status word in Label caps. Color is never the only signal — the word is
+  always present. Rejected/declined uses neutral charcoal, never red (The One Red Rule).
 
-### Balance Strip (signature)
-- The dashboard totals set as a **ruled ledger balance**, not KPI cards: one horizontal band on
-  the sheet, divided by vertical hairlines into columns; each column is a Head label over a serif
-  **Figure**, with a status dot. It reads like the totals penned at the head of a ledger page.
-
-### The Register (signature)
-- The entries table: a **line-number margin**, ruled hairline rows, alternating Sheet Alt tint,
-  serif names, tabular dates stamped in Ink Soft, a Status Seal in the final column. Head row is
-  Head style with a `rule-strong` underline. Empty and loading states stay in-world (a ruled,
-  empty sheet that says the register is empty; a quiet ruling-in shimmer, not a spinner).
+### Brand Lockup (signature)
+- The login screen shows the real property lockup image (public/marriott-marquis-logo.png) at
+  full fidelity — the one place the ceremony of the actual logo appears. Every other screen
+  (the dark nav band, favicon) uses the redrawn compact mark + CertiFlow wordmark pairing,
+  since the real asset's black wordmark can't sit on a dark surface.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** rule content into bands; use the single **Sheet** as the only container.
-- **Do** keep every head and figure serif, every datum and control sans (The Serif-Heads Rule).
-- **Do** hold brass to one action per view (The One Brass Rule) and tint secondary text warm
-  (The Ink-Never-Gray Rule).
+- **Do** hold red to brand and primary action only (The One Red Rule).
+- **Do** keep every role in Inter; build hierarchy with weight and size (The One-Voice Rule).
+- **Do** use neutral-grey secondary text and neutral shadows, never warm-tinted (The Flat-Grey
+  Rule, The No-Glow Rule).
 - **Do** label every status with its word, not color alone.
-- **Do** author one orchestrated motion (the register ruling in / the page turning on track
-  switch) and honor `prefers-reduced-motion`.
+- **Do** show the full brand lockup once (login) and the compact mark elsewhere.
 
 ### Don't:
-- **Don't** ship KPI stat-cards, a left sidebar, or a blue accent — that is the SaaS rut.
-- **Don't** ship the dark-gold-glow "luxury" skin — that is the opposite rut.
-- **Don't** put a drop shadow on a row, stat, or seal (The No-Float Rule).
-- **Don't** use a colored `border-left`/`right` above 1px as decoration on rows or callouts
-  (the sheet's structural margin rule is the only sanctioned vertical color rule).
-- **Don't** use gray for secondary text, or brass-bright for small text.
+- **Don't** reintroduce a serif or engraved caps treatment — that is the discarded world.
+- **Don't** use red for status, error, or destructive actions — give those their own hue.
+- **Don't** ship a sharp near-zero radius on cards/controls — this world is deliberately softer
+  than its predecessor.
+- **Don't** tint secondary text or shadows warm; this is a corporate standard, not a heritage
+  artifact.

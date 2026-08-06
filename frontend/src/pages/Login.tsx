@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { FileText, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { MarriottLogo } from '../components/MarriottLogo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -37,17 +38,12 @@ export default function Login() {
     <div className="min-h-screen bg-paper flex items-center justify-center p-4 font-data">
       <div className="max-w-md w-full">
 
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2.5 mb-1">
-            <FileText className="h-5 w-5 text-brass" />
-            <span className="font-crest text-[0.95rem] font-semibold tracking-[0.16em] uppercase text-ink">
-              CertiFlow
-            </span>
-          </div>
-          <p className="text-ink-soft text-sm">Secure Document Access</p>
+        <div className="text-center mb-8">
+          <MarriottLogo variant="lockup" />
+          <p className="text-ink-soft text-sm mt-4">CertiFlow &middot; Secure Document Access</p>
         </div>
 
-        <div className="bg-sheet shadow-sheet border border-rule">
+        <div className="bg-sheet shadow-sheet border border-rule rounded-xl">
           <div className="p-8">
             <form onSubmit={handleLogin} className="space-y-5">
               {error && (
@@ -63,7 +59,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-3 text-ink placeholder:text-ink-soft/50 focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                  className="w-full bg-sheet border border-rule rounded-lg px-4 py-3 text-ink placeholder:text-ink-soft/50 focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                   placeholder="emp@certiflow.com"
                 />
               </div>
@@ -75,7 +71,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-3 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                  className="w-full bg-sheet border border-rule rounded-lg px-4 py-3 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                   placeholder="••••••••"
                 />
               </div>
@@ -83,7 +79,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-brass hover:bg-[#6B560E] text-sheet rounded-[2px] py-3.5 font-semibold text-xs uppercase tracking-[0.08em] flex justify-center items-center gap-2 transition-colors active:scale-[0.99]"
+                className="w-full bg-red hover:bg-[#6E1224] text-sheet rounded-lg py-3.5 font-semibold text-xs uppercase tracking-[0.08em] flex justify-center items-center gap-2 transition-colors active:scale-[0.99]"
               >
                 {loading ? (
                   <>
@@ -95,14 +91,15 @@ export default function Login() {
               </button>
             </form>
 
-            {import.meta.env.DEV && (
-              <div className="mt-8 pt-6 border-t border-rule text-center text-sm text-ink-soft">
-                <p>Phase 1 Test Accounts:</p>
-                <p className="mt-1 text-ink">super@certiflow.com | admin@certiflow.com</p>
-                <p className="text-ink">somchai@certiflow.com</p>
-                <p className="mt-1 font-semibold text-ink">PW: admin123</p>
-              </div>
-            )}
+            <div className="mt-8 pt-6 border-t border-rule text-center space-y-1.5">
+              <p className="text-ink-soft text-xs leading-relaxed">
+                Official HR document request system for Marriott Marquis Bangkok Queen&apos;s Park.
+                For authorized staff use only.
+              </p>
+              <p className="text-ink-soft/60 text-[0.6875rem] uppercase tracking-[0.08em] pt-1">
+                Developed by MILF Dev
+              </p>
+            </div>
           </div>
         </div>
       </div>

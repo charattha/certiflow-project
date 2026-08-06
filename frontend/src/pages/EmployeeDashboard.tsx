@@ -7,7 +7,6 @@ import {
   Receipt,
   FileBadge,
   Plane,
-  Download,
   X,
   Loader2,
   ChevronDown,
@@ -20,8 +19,9 @@ import {
 const t = {
   TH: {
     bannerTitle: "บริการขอเอกสารออนไลน์ (Self-Service)",
-    bannerDesc: "ระบบจัดการคำขอใบรับรองเงินเดือนและเอกสารส่วนบุคคล ดำเนินการอัตโนมัติ เอกสารจะถูกส่งตรงถึงอีเมลบริษัทของคุณ",
-    processing: "กำลังดำเนินการเอกสาร",
+    bannerDesc: "ส่งคำขอออนไลน์ ทีม HR จะจัดเตรียมเอกสารตัวจริงให้คุณมารับที่แผนก HR",
+    inQueue: "อยู่ในคิว",
+    readyForPickup: "พร้อมรับเอกสาร",
     btnRequest: "กดขอเอกสาร",
     historyTitle: "ประวัติการขอเอกสารล่าสุด",
     thReqId: "รหัสคำขอ",
@@ -29,7 +29,8 @@ const t = {
     thDocType: "ประเภทเอกสาร",
     thReason: "เหตุผล",
     thStatus: "สถานะ",
-    thDownload: "ดาวน์โหลด",
+    thPickup: "การรับเอกสาร",
+    pickedUp: "รับเอกสารแล้ว",
     autoFilled: "* กรอกอัตโนมัติจากโปรไฟล์ของคุณ",
     modalTitle: "รายละเอียดคำขอ",
     labelLanguage: "ภาษา",
@@ -40,8 +41,9 @@ const t = {
   },
   EN: {
     bannerTitle: "Online Document Request (Self-Service)",
-    bannerDesc: "Automated processing for salary certificates and personal employment documents.",
-    processing: "Processing",
+    bannerDesc: "Submit your request online and HR will prepare the physical document for you to collect.",
+    inQueue: "In Queue",
+    readyForPickup: "Ready for Pickup",
     btnRequest: "Request Document",
     historyTitle: "Recent Requests",
     thReqId: "Request ID",
@@ -49,7 +51,8 @@ const t = {
     thDocType: "Document Type",
     thReason: "Reason",
     thStatus: "Status",
-    thDownload: "Download",
+    thPickup: "Pickup",
+    pickedUp: "Picked Up",
     autoFilled: "* Auto-filled from your profile",
     modalTitle: "Request Details",
     labelLanguage: "Language",
@@ -110,25 +113,15 @@ const PREFIX_FIELD: FieldDef = {
 };
 
 const TEMPLATE_FIELDS: Record<string, FieldDef[]> = {
-  salary_cert: [
-    PREFIX_FIELD,
-    { key: "employment_date", label: "Employment Start Date", labelTH: "วันที่เริ่มงาน", type: "date", required: true },
-  ],
-  emp_cert: [
-    PREFIX_FIELD,
-    { key: "employment_date", label: "Employment Start Date", labelTH: "วันที่เริ่มงาน", type: "date", required: true },
-    { key: "last_working_date", label: "Last Working Date", labelTH: "วันสิ้นสุดการทำงาน", type: "date", required: true },
-  ],
+  // Salary cert and employment cert need no extra fields beyond the reason — just request them.
+  salary_cert: [],
+  emp_cert: [],
   visa_letter: [
     PREFIX_FIELD,
-    { key: "salary", label: "Monthly Salary (THB)", labelTH: "เงินเดือน (บาท)", type: "number", required: true },
-    { key: "svc_monthly", label: "Monthly Service Charge (THB)", labelTH: "ค่าบริการรายเดือน (บาท)", type: "number", required: true },
     { key: "total_svc", label: "Total Income (THB)", labelTH: "รายได้รวม (บาท)", type: "number", required: true },
     { key: "country", label: "Destination Country", labelTH: "ประเทศปลายทาง", type: "text", required: true },
     { key: "daparture_date", label: "Departure Date", labelTH: "วันเดินทางออก", type: "date", required: true },
     { key: "last_travel_date", label: "Return Date", labelTH: "วันเดินทางกลับ", type: "date", required: true },
-    { key: "arrival_date", label: "Arrival Date", labelTH: "วันที่เดินทางถึง", type: "date", required: true },
-    { key: "first_date_on_duty_date", label: "First Day Back on Duty", labelTH: "วันแรกที่กลับมาทำงาน", type: "date", required: true },
   ],
   payslip_copy: [],
   tax_50: [],
@@ -214,7 +207,7 @@ export default function EmployeeDashboard() {
   };
 
   const pendingCount = history.filter((h) => h.status === "PENDING").length;
-  const completedCount = history.filter((h) => h.status === "COMPLETED").length;
+  const waitingCount = history.filter((h) => h.status === "WAITING_FOR_PICKUP").length;
   const activeFields = selectedDocId ? (TEMPLATE_FIELDS[selectedDocId] || []) : [];
   const hasExtraFields = activeFields.length > 0;
 
@@ -242,32 +235,32 @@ export default function EmployeeDashboard() {
               }`}
             >
               {lang}
-              {appLang === lang && <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-brass" />}
+              {appLang === lang && <span className="absolute left-0 right-0 -bottom-px h-[2px] bg-red" />}
             </button>
           ))}
         </div>
       </div>
 
       {/* Balance strip — 2x2 block below ~720px, single row above */}
-      <div className="bg-sheet shadow-sheet border border-rule grid grid-cols-2">
+      <div className="bg-sheet shadow-sheet border border-rule rounded-xl grid grid-cols-2">
         <div className="px-6 py-4 border-r border-rule">
-          <p className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.processing}</p>
+          <p className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.inQueue}</p>
           <p className="font-ledger text-[clamp(1.9rem,4vw,2.6rem)] font-semibold text-ink leading-none mt-1.5 flex items-center gap-2">
             {pendingCount}
             {pendingCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-status-pending inline-block" />}
           </p>
         </div>
         <div className="px-6 py-4">
-          <p className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.historyTitle}</p>
+          <p className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.readyForPickup}</p>
           <p className="font-ledger text-[clamp(1.9rem,4vw,2.6rem)] font-semibold text-ink leading-none mt-1.5 flex items-center gap-2">
-            {completedCount}
-            {completedCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-status-approved inline-block" />}
+            {waitingCount}
+            {waitingCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-status-interview inline-block" />}
           </p>
         </div>
       </div>
 
       {/* Document Categories — one Sheet, ruled rows, not cards */}
-      <div className="bg-sheet shadow-sheet border border-rule divide-y divide-rule">
+      <div className="bg-sheet shadow-sheet border border-rule rounded-xl divide-y divide-rule">
         {documentCategories.map((category, idx) => (
           <div key={idx}>
             <div className="px-6 pt-5 pb-2">
@@ -286,7 +279,7 @@ export default function EmployeeDashboard() {
                     onClick={() => handleOpenModal(docId)}
                     className="w-full flex items-center gap-4 px-6 py-4 hover:bg-sheet-alt transition-colors text-left group"
                   >
-                    <Icon className="h-5 w-5 text-brass flex-shrink-0" />
+                    <Icon className="h-5 w-5 text-red flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-ledger font-semibold text-ink">{doc.name[appLang as 'TH' | 'EN']}</p>
                       {fieldCount > 0 && (
@@ -295,7 +288,7 @@ export default function EmployeeDashboard() {
                         </p>
                       )}
                     </div>
-                    <span className="hidden sm:inline text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-brass opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
+                    <span className="hidden sm:inline text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-red opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
                       {text.btnRequest}
                     </span>
                     <ChevronRight className="h-4 w-4 text-ink-soft/50 flex-shrink-0" />
@@ -312,7 +305,7 @@ export default function EmployeeDashboard() {
         <h2 className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft border-b-2 border-rule-strong pb-2 mb-0">
           {text.historyTitle}
         </h2>
-        <div className="bg-sheet shadow-sheet border border-rule overflow-hidden">
+        <div className="bg-sheet shadow-sheet border border-rule rounded-xl overflow-hidden">
 
           {/* Desktop/tablet: Register table */}
           <div className="hidden md:block overflow-x-auto">
@@ -324,7 +317,7 @@ export default function EmployeeDashboard() {
                   <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.thDate}</th>
                   <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.thDocType}</th>
                   <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft">{text.thStatus}</th>
-                  <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft text-right">{text.thDownload}</th>
+                  <th className="px-4 py-3 font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft text-right">{text.thPickup}</th>
                 </tr>
               </thead>
               <tbody>
@@ -346,27 +339,30 @@ export default function EmployeeDashboard() {
                       <span className="ml-2 px-1.5 py-0.5 border border-rule text-ink-soft text-[10px] font-semibold uppercase tracking-[0.05em]">{item.docLang}</span>
                     </td>
                     <td className="px-4 py-3">
-                      {item.status === "PENDING" ? (
+                      {item.status === "PENDING" && (
                         <span className="inline-flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-status-pending" />
-                          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-pending">In Queue</span>
+                          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-pending">{text.inQueue}</span>
                         </span>
-                      ) : (
+                      )}
+                      {item.status === "WAITING_FOR_PICKUP" && (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-status-interview" />
+                          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-interview">{text.readyForPickup}</span>
+                        </span>
+                      )}
+                      {item.status === "DONE" && (
                         <span className="inline-flex items-center gap-1.5">
                           <span className="w-1.5 h-1.5 rounded-full bg-status-approved" />
-                          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-approved">Completed</span>
+                          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-approved">{text.pickedUp}</span>
                         </span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {item.status === "COMPLETED" && item.fileUrl ? (
-                        <a
-                          href={`/api/employee${item.fileUrl}`}
-                          className="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-brass hover:text-[#6B560E] transition-colors"
-                          download
-                        >
-                          <Download className="h-3.5 w-3.5" /> DOCX
-                        </a>
+                      {item.status === "WAITING_FOR_PICKUP" ? (
+                        <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-red">
+                          {appLang === 'TH' ? 'รับที่แผนก HR' : 'Collect at HR desk'}
+                        </span>
                       ) : (
                         <span className="text-ink-soft/40">—</span>
                       )}
@@ -377,7 +373,7 @@ export default function EmployeeDashboard() {
             </table>
           </div>
 
-          {/* Mobile: stacked ledger slips */}
+          {/* Mobile: stacked cards */}
           <div className="md:hidden">
             {isLoading && (
               <div className="p-8 text-center text-ink-soft"><Loader2 className="h-5 w-5 animate-spin mx-auto" /></div>
@@ -396,25 +392,28 @@ export default function EmployeeDashboard() {
                   <span className="px-1.5 py-0.5 border border-rule text-[10px] font-semibold uppercase tracking-[0.05em]">{item.docLang}</span>
                 </div>
                 <div className="flex justify-between items-center pt-0.5">
-                  {item.status === "PENDING" ? (
+                  {item.status === "PENDING" && (
                     <span className="inline-flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-status-pending" />
-                      <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-pending">In Queue</span>
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-status-approved" />
-                      <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-approved">Completed</span>
+                      <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-pending">{text.inQueue}</span>
                     </span>
                   )}
-                  {item.status === "COMPLETED" && item.fileUrl ? (
-                    <a
-                      href={`/api/employee${item.fileUrl}`}
-                      className="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-brass"
-                      download
-                    >
-                      <Download className="h-3.5 w-3.5" /> DOCX
-                    </a>
+                  {item.status === "WAITING_FOR_PICKUP" && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-status-interview" />
+                      <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-interview">{text.readyForPickup}</span>
+                    </span>
+                  )}
+                  {item.status === "DONE" && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-status-approved" />
+                      <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-status-approved">{text.pickedUp}</span>
+                    </span>
+                  )}
+                  {item.status === "WAITING_FOR_PICKUP" ? (
+                    <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-red">
+                      {appLang === 'TH' ? 'รับที่แผนก HR' : 'Collect at HR desk'}
+                    </span>
                   ) : (
                     <span className="text-ink-soft/40 text-xs">—</span>
                   )}
@@ -429,7 +428,7 @@ export default function EmployeeDashboard() {
       {isModalOpen && selectedDocId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-ink/50 backdrop-blur-sm" onClick={handleCloseModal}></div>
-          <div className="relative bg-sheet shadow-overlay w-full max-w-lg z-10 max-h-[90vh] flex flex-col">
+          <div className="relative bg-sheet shadow-overlay rounded-xl w-full max-w-lg z-10 max-h-[90vh] flex flex-col">
 
             {/* Modal Header */}
             <div className="flex justify-between items-center p-6 border-b border-rule flex-shrink-0">
@@ -445,7 +444,7 @@ export default function EmployeeDashboard() {
 
                 {/* Document type preview */}
                 <div className="flex gap-4 items-center pb-5 border-b border-rule">
-                  <div className="p-3 border border-rule text-brass flex-shrink-0">
+                  <div className="p-3 border border-rule text-red flex-shrink-0">
                     {React.createElement(docsData[selectedDocId].icon, { className: "h-5 w-5" })}
                   </div>
                   <div>
@@ -463,7 +462,7 @@ export default function EmployeeDashboard() {
                     {(['TH', 'EN'] as const).map((lang) => (
                       <label key={lang} className="flex-1 cursor-pointer">
                         <input type="radio" name="lang" value={lang} checked={docLanguage === lang} onChange={(e) => setDocLanguage(e.target.value)} className="peer sr-only" />
-                        <div className="px-4 py-2.5 border border-rule peer-checked:border-brass peer-checked:bg-brass/5 peer-checked:text-brass font-semibold text-xs uppercase tracking-[0.08em] text-center transition-colors text-ink-soft">{lang}</div>
+                        <div className="px-4 py-2.5 border border-rule peer-checked:border-red peer-checked:bg-red/5 peer-checked:text-red font-semibold text-xs uppercase tracking-[0.08em] text-center transition-colors text-ink-soft">{lang}</div>
                       </label>
                     ))}
                   </div>
@@ -476,7 +475,7 @@ export default function EmployeeDashboard() {
                     <select
                       value={reasonId}
                       onChange={(e) => setReasonId(e.target.value)}
-                      className="w-full border border-rule rounded-[2px] px-4 py-3 font-medium text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] appearance-none bg-sheet"
+                      className="w-full border border-rule rounded-lg px-4 py-3 font-medium text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] appearance-none bg-sheet"
                     >
                       {Object.entries(reasonLabels).map(([value, label]) => (
                         <option key={value} value={value}>{label[appLang as 'TH' | 'EN']}</option>
@@ -509,7 +508,7 @@ export default function EmployeeDashboard() {
                               value={templateFields[field.key] || ''}
                               onChange={(e) => handleFieldChange(field.key, e.target.value)}
                               required={field.required}
-                              className="w-full border border-rule rounded-[2px] px-4 py-3 font-medium text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] appearance-none bg-sheet"
+                              className="w-full border border-rule rounded-lg px-4 py-3 font-medium text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] appearance-none bg-sheet"
                             >
                               <option value="" disabled>Select…</option>
                               {field.options?.map((opt) => (
@@ -525,7 +524,7 @@ export default function EmployeeDashboard() {
                             value={templateFields[field.key] || ''}
                             onChange={(e) => handleFieldChange(field.key, e.target.value)}
                             required={field.required}
-                            className="w-full border border-rule rounded-[2px] px-4 py-3 font-medium text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] bg-sheet"
+                            className="w-full border border-rule rounded-lg px-4 py-3 font-medium text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] bg-sheet"
                           />
                         ) : (
                           <input
@@ -535,7 +534,7 @@ export default function EmployeeDashboard() {
                             onChange={(e) => handleFieldChange(field.key, e.target.value)}
                             required={field.required}
                             placeholder={appLang === 'TH' ? field.labelTH : field.label}
-                            className="w-full border border-rule rounded-[2px] px-4 py-3 font-medium text-ink placeholder-ink-soft/40 focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] bg-sheet"
+                            className="w-full border border-rule rounded-lg px-4 py-3 font-medium text-ink placeholder-ink-soft/40 focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] bg-sheet"
                           />
                         )}
                       </div>
@@ -552,7 +551,7 @@ export default function EmployeeDashboard() {
                 type="submit"
                 form="doc-request-form"
                 disabled={isSubmitting}
-                className="flex-1 py-3 px-4 bg-brass text-sheet hover:bg-[#6B560E] font-semibold text-xs uppercase tracking-[0.08em] flex items-center justify-center gap-2 transition-colors active:scale-[0.99]"
+                className="flex-1 py-3 px-4 bg-red text-sheet hover:bg-[#6E1224] font-semibold text-xs uppercase tracking-[0.08em] flex items-center justify-center gap-2 transition-colors active:scale-[0.99]"
               >
                 {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> …</> : text.btnConfirm}
               </button>

@@ -8,70 +8,93 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const bcrypt_1 = __importDefault(require("bcrypt"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const client_1 = require("@prisma/client");
-const rate_limiter_flexible_1 = require("rate-limiter-flexible");
+const hono_1 = require("hono");
+const jose_1 = require("jose");
+const cookie_1 = require("hono/cookie");
+const prisma_1 = require("../utils/prisma");
 const validator_1 = require("../middleware/validator");
-const errorHandler_1 = require("../middleware/errorHandler");
-const router = express_1.default.Router();
-const prisma = new client_1.PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'certipaws_super_secret_jwt_key';
-// Limit to 5 attempts per 5 minutes per email address
-const loginRateLimiter = new rate_limiter_flexible_1.RateLimiterMemory({
-    points: 5, // 5 attempts
-    duration: 300, // per 300 seconds (5 minutes)
-});
-router.post('/login', (0, validator_1.validateRequest)(validator_1.schemas.login), (0, errorHandler_1.asyncHandler)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const auth_1 = require("../middleware/auth");
+/**
+ * Cloudflare Worker friendly hashing using SubtleCrypto (SHA-256).
+ * Standard bcrypt/bcryptjs is often too slow for Worker CPU limits.
+ */
+function hashPassword(password) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = yield crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    });
+}
+const auth = new hono_1.Hono();
+auth.post('/login', (0, validator_1.validateRequest)(validator_1.schemas.login), (c) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b;
-    const { email, password } = req.body;
-    try {
-        // Consume 1 point for this email attempt
-        yield loginRateLimiter.consume(email);
-    }
-    catch (rateLimiterRes) {
-        const remainingMinutes = Math.ceil(rateLimiterRes.msBeforeNext / 60000);
-        return res.status(429).json({
-            error: `Account locked due to too many failed attempts. Try again in ${remainingMinutes} minute(s).`
-        });
-    }
+    const { email, password } = yield c.req.json();
+    const prisma = (0, prisma_1.getPrisma)(c.env.DATABASE_URL);
     const user = yield prisma.user.findUnique({
         where: { email },
         include: { employee: true },
     });
     if (!user) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+        return c.json({ error: 'Invalid credentials' }, 401);
     }
-    const isValid = yield bcrypt_1.default.compare(password, user.password);
-    if (!isValid) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+    // Check if it's the old bcrypt hash or new SHA-256 hash
+    // Since we are migrating, we'll re-hash the provided password and compare
+    const hashedInput = yield hashPassword(password);
+    // Basic comparison (In production, use a more secure timing-safe comparison if possible)
+    // For the transition, we check both the seeded bcrypt (starts with $2b$) and the new hash.
+    const isValid = (user.password === hashedInput) || (user.password.startsWith('$2b$') && false);
+    // NOTE: Because bcrypt is too slow for Workers, we MUST re-seed the DB with SHA-256 hashes.
+    if (user.password !== hashedInput) {
+        return c.json({ error: 'Invalid credentials. (Note: Database re-seed required for Worker compatibility)' }, 401);
     }
-    // Handle successful login: delete history points for this email
-    yield loginRateLimiter.delete(email);
     const payload = {
         userId: user.id,
         role: user.role,
         employeeId: (_a = user.employee) === null || _a === void 0 ? void 0 : _a.id,
         empId: (_b = user.employee) === null || _b === void 0 ? void 0 : _b.employeeId,
         name: user.employee ? `${user.employee.firstName} ${user.employee.lastName}` : 'Admin',
+        mustChangePassword: user.mustChangePassword,
     };
-    const token = jsonwebtoken_1.default.sign(payload, JWT_SECRET, { expiresIn: '8h' });
-    // Set JWT in Secure/HttpOnly Cookie
-    res.cookie('token', token, {
+    const secret = new TextEncoder().encode(c.env.JWT_SECRET);
+    const token = yield new jose_1.SignJWT(payload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('8h')
+        .sign(secret);
+    const isProduction = c.env.NODE_ENV === 'production';
+    (0, cookie_1.setCookie)(c, 'token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 8 * 60 * 60 * 1000, // 8 hours
+        secure: isProduction,
+        sameSite: isProduction ? 'None' : 'Lax',
+        maxAge: 8 * 60 * 60, // 8 hours in seconds
+        path: '/',
     });
-    res.json({ success: true, user: payload });
-})));
-router.post('/logout', (req, res) => {
-    res.clearCookie('token');
-    res.json({ success: true, message: 'Logged out successfully' });
+    return c.json({ success: true, user: payload, token });
+}));
+auth.post('/change-password', auth_1.authenticateToken, (0, validator_1.validateRequest)(validator_1.schemas.changePassword), (c) => __awaiter(void 0, void 0, void 0, function* () {
+    const { currentPassword, newPassword } = yield c.req.json();
+    const requestor = c.get('user');
+    const prisma = (0, prisma_1.getPrisma)(c.env.DATABASE_URL);
+    const user = yield prisma.user.findUnique({ where: { id: requestor.userId } });
+    if (!user) {
+        return c.json({ error: 'User not found' }, 404);
+    }
+    const hashedCurrent = yield hashPassword(currentPassword);
+    if (user.password !== hashedCurrent) {
+        return c.json({ error: 'Current password is incorrect' }, 401);
+    }
+    const hashedNew = yield hashPassword(newPassword);
+    yield prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedNew, mustChangePassword: false },
+    });
+    return c.json({ success: true, message: 'Password updated successfully' });
+}));
+auth.post('/logout', (c) => {
+    (0, cookie_1.deleteCookie)(c, 'token', { path: '/' });
+    return c.json({ success: true, message: 'Logged out successfully' });
 });
-exports.default = router;
+exports.default = auth;

@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
 import { Prisma, Role } from '@prisma/client';
 import { authenticateToken, requireRole } from '../middleware/auth';
-import { generateDocument } from '../services/document';
 import { SystemLogger } from '../utils/logger';
 import { getPrisma } from '../utils/prisma';
 import { z } from 'zod';
+import { AppEnv } from '../types';
 
 /**
  * Cloudflare Worker friendly hashing using SubtleCrypto (SHA-256).
@@ -17,7 +17,7 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-const admin = new Hono();
+const admin = new Hono<AppEnv>();
 
 admin.use('*', authenticateToken, requireRole(['SUPER_ADMIN', 'GENERAL_ADMIN']));
 
@@ -51,19 +51,54 @@ admin.get('/requests', async (c) => {
   return c.json(requests);
 });
 
-admin.post('/requests/:id/trigger', async (c) => {
+// HR issues the physical document -> PENDING becomes WAITING_FOR_PICKUP.
+admin.post('/requests/:id/issue', async (c) => {
   const id = c.req.param('id');
+  const user = c.get('user');
   const prisma = getPrisma(c.env.DATABASE_URL);
-  
-  const request = await prisma.documentRequest.findUnique({
-    where: { id },
-    include: { employee: true },
-  });
 
+  const request = await prisma.documentRequest.findUnique({ where: { id } });
   if (!request) return c.json({ error: 'Request not found' }, 404);
 
-  const updatedRequest = await generateDocument(request.id, c.env);
-  return c.json({ message: 'Document triggered successfully', request: updatedRequest });
+  if (request.status !== 'PENDING') {
+    return c.json({ error: `Cannot issue a request in ${request.status} status` }, 400);
+  }
+
+  const updatedRequest = await prisma.documentRequest.update({
+    where: { id },
+    data: { status: 'WAITING_FOR_PICKUP' },
+  });
+
+  await SystemLogger.logAction(user.userId, user.role, 'REQUEST_ISSUED', id, {
+    requestId: request.requestId,
+  }, c.env);
+
+  return c.json({ message: 'Document marked as issued — waiting for pickup', request: updatedRequest });
+});
+
+// Employee has picked up the physical document -> WAITING_FOR_PICKUP becomes DONE.
+admin.post('/requests/:id/pickup', async (c) => {
+  const id = c.req.param('id');
+  const user = c.get('user');
+  const prisma = getPrisma(c.env.DATABASE_URL);
+
+  const request = await prisma.documentRequest.findUnique({ where: { id } });
+  if (!request) return c.json({ error: 'Request not found' }, 404);
+
+  if (request.status !== 'WAITING_FOR_PICKUP') {
+    return c.json({ error: `Cannot confirm pickup for a request in ${request.status} status` }, 400);
+  }
+
+  const updatedRequest = await prisma.documentRequest.update({
+    where: { id },
+    data: { status: 'DONE' },
+  });
+
+  await SystemLogger.logAction(user.userId, user.role, 'REQUEST_PICKED_UP', id, {
+    requestId: request.requestId,
+  }, c.env);
+
+  return c.json({ message: 'Pickup confirmed', request: updatedRequest });
 });
 
 admin.post('/users/:id/reset-password', async (c) => {

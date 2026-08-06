@@ -1,16 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.asyncHandler = exports.errorHandler = void 0;
-// Global error handler
-const errorHandler = (err, req, res, next) => {
+exports.errorHandler = void 0;
+const errorHandler = (err, c) => {
     console.error('[Error Handler]:', err.message);
-    // Expose stack trace only in development, NOT in production
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    res.status(500).json(Object.assign({ success: false, message: err.message || 'Internal Server Error' }, (isDevelopment && { stack: err.stack })));
+    const isDevelopment = c.env.NODE_ENV === 'development';
+    return c.json(Object.assign({ success: false, message: isDevelopment ? err.message : 'Internal Server Error' }, (isDevelopment && { stack: err.stack })), 500);
 };
 exports.errorHandler = errorHandler;
-// Async wrapper to eliminate try-catch boilerplate in route controllers
-const asyncHandler = (fn) => (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-};
-exports.asyncHandler = asyncHandler;

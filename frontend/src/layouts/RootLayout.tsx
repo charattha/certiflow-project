@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Outlet, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import api from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { FileText, LogOut, LayoutDashboard, ShieldCheck, User, Menu, X, KeyRound, Loader2, AlertCircle } from 'lucide-react';
+import { LogOut, LayoutDashboard, ShieldCheck, User, Menu, X, KeyRound, Loader2, AlertCircle } from 'lucide-react';
+import { MarriottLogo } from '../components/MarriottLogo';
 
 export default function RootLayout() {
   const { user, token, logout, completePasswordChange } = useAuth();
@@ -71,14 +72,14 @@ export default function RootLayout() {
       {/* Change Password Forced Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink/50 backdrop-blur-sm">
-          <div className="bg-sheet w-full max-w-md shadow-overlay overflow-hidden">
+          <div className="bg-sheet w-full max-w-md shadow-overlay rounded-xl overflow-hidden">
             <div className="p-8 space-y-6">
               <div className="text-center space-y-2">
                 <div className="w-14 h-14 flex items-center justify-center mx-auto border border-rule-strong mb-2">
-                  <KeyRound className="h-6 w-6 text-brass" />
+                  <KeyRound className="h-6 w-6 text-red" />
                 </div>
                 <h2 className="font-ledger text-[1.125rem] font-semibold text-ink">Security Update Required</h2>
-                <p className="text-ink-soft text-sm">Please update your password to continue using the register.</p>
+                <p className="text-ink-soft text-sm">Please update your password to continue.</p>
               </div>
 
               {error && (
@@ -95,7 +96,7 @@ export default function RootLayout() {
                     required
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                     placeholder="Current password"
                   />
                 </div>
@@ -106,7 +107,7 @@ export default function RootLayout() {
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                     placeholder="Minimum 6 characters"
                   />
                 </div>
@@ -117,14 +118,14 @@ export default function RootLayout() {
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                     placeholder="Repeat new password"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={isChanging}
-                  className="w-full bg-brass text-sheet py-3 font-semibold tracking-[0.08em] uppercase text-xs hover:bg-[#6B560E] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+                  className="w-full bg-red text-sheet py-3 font-semibold tracking-[0.08em] uppercase text-xs hover:bg-[#6E1224] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
                 >
                   {isChanging ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Update & Continue'}
                 </button>
@@ -142,15 +143,9 @@ export default function RootLayout() {
       )}
 
       {/* The Binding — top navigation band */}
-      <header className="sticky top-0 z-40 h-[52px] bg-binding border-b-2 border-brass flex items-center px-4 md:px-8 flex-shrink-0">
-        <div className="flex items-center gap-2.5 flex-shrink-0">
-          {/* Crest mark: placeholder until official Marriott Marquis Bangkok crest asset is supplied */}
-          <div className="text-brass">
-            <FileText className="h-5 w-5" />
-          </div>
-          <span className="font-crest text-[0.95rem] font-semibold tracking-[0.16em] uppercase text-sheet leading-none">
-            CertiFlow
-          </span>
+      <header className="sticky top-0 z-40 h-[52px] bg-binding border-b-2 border-red-bright flex items-center px-4 md:px-8 flex-shrink-0">
+        <div className="flex-shrink-0">
+          <MarriottLogo variant="compact" theme="dark" />
         </div>
 
         <nav className="hidden md:flex items-center gap-8 ml-12">
@@ -165,7 +160,7 @@ export default function RootLayout() {
                 }`}
               >
                 {item.label}
-                {active && <span className="absolute left-0 right-0 -bottom-[2px] h-[2px] bg-brass" />}
+                {active && <span className="absolute left-0 right-0 -bottom-[2px] h-[2px] bg-red-bright" />}
               </button>
             );
           })}
@@ -191,9 +186,9 @@ export default function RootLayout() {
         </div>
       </header>
 
-      {/* Mobile ledger-tab menu */}
+      {/* Mobile nav menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-binding-soft border-b border-brass/30">
+        <div className="md:hidden bg-binding-soft border-b border-red/30">
           {navItems.map((item) => {
             const active = location.pathname === item.path;
             const Icon = item.icon;
@@ -205,10 +200,11 @@ export default function RootLayout() {
                   setMobileMenuOpen(false);
                 }}
                 className={`w-full flex items-center gap-3 px-6 py-3.5 text-xs font-semibold uppercase tracking-[0.08em] border-b border-sheet/5 ${
-                  active ? 'text-brass-bright' : 'text-sheet/70'
+                  active ? 'text-sheet' : 'text-sheet/70'
                 }`}
               >
                 <Icon className="h-4 w-4" /> {item.label}
+                {active && <span className="w-1.5 h-1.5 rounded-full bg-red-bright ml-auto" />}
               </button>
             );
           })}
@@ -217,7 +213,7 @@ export default function RootLayout() {
               <User className="h-4 w-4" />
               <span className="text-xs">{user.name} &middot; {user.role.replace('_', ' ')}</span>
             </div>
-            <button onClick={handleLogout} className="text-brass-bright text-xs font-semibold uppercase tracking-[0.08em]">
+            <button onClick={handleLogout} className="text-sheet text-xs font-semibold uppercase tracking-[0.08em]">
               Sign Out
             </button>
           </div>
@@ -227,6 +223,10 @@ export default function RootLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
+
+      <footer className="py-4 text-center text-[0.6875rem] text-ink-soft/60 uppercase tracking-[0.08em] flex-shrink-0">
+        Developed by MILF Dev
+      </footer>
     </div>
   );
 }

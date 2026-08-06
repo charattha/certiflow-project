@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { authenticateToken } from '../middleware/auth';
-import { triggerDocumentGeneration } from '../services/document';
 import { TEMPLATE_FIELD_DEFINITIONS } from '../utils/templateFields';
 import { getPrisma } from '../utils/prisma';
+import { AppEnv } from '../types';
 
-const employee = new Hono();
+const employee = new Hono<AppEnv>();
 
 employee.use('*', authenticateToken);
 
@@ -69,6 +69,8 @@ employee.post('/requests', async (c) => {
   const count = await prisma.documentRequest.count();
   const requestId = `REQ-${(count + 1).toString().padStart(3, '0')}`;
 
+  // Requested -> routed to HR: the request is created PENDING and stays there
+  // until HR issues the physical document (see admin.ts POST /requests/:id/issue).
   const newRequest = await prisma.documentRequest.create({
     data: {
       requestId,
@@ -80,22 +82,7 @@ employee.post('/requests', async (c) => {
     },
   });
 
-  // Cloudflare Workers use c.executionCtx.waitUntil for background tasks
-  c.executionCtx.waitUntil(triggerDocumentGeneration(newRequest.id, c.env));
-
   return c.json(newRequest, 201);
-});
-
-// Download route might need adjustment depending on where we store generated files (e.g. Supabase Storage)
-employee.get('/downloads/:filename', async (c) => {
-  const filename = c.req.param('filename');
-  if (!/^[A-Za-z0-9\-]+\.docx$/.test(filename)) {
-    return c.json({ error: 'Invalid filename' }, 400);
-  }
-
-  // In a Worker environment, we would fetch from R2 or Supabase Storage
-  // For now, returning a 404 until Storage is implemented
-  return c.json({ error: 'File storage migration in progress' }, 404);
 });
 
 export default employee;

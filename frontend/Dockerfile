@@ -12,8 +12,9 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the app explicitly passing the API URL if needed via build args
-# However, React apps run in the browser, so they call the API from the client's perspective.
+# Build the app, optionally overriding the backend URL for this environment
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # 2. Production stage using Nginx

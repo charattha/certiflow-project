@@ -191,7 +191,7 @@ export default function AdminManagement() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="font-ledger text-[1.125rem] font-semibold text-ink flex items-center gap-2.5">
-            <ShieldCheck className="h-5 w-5 text-brass" />
+            <ShieldCheck className="h-5 w-5 text-red" />
             User &amp; Access Control
           </h2>
           <p className="text-ink-soft text-sm mt-0.5">Direct database management for {user?.role.replace('_', ' ')}.</p>
@@ -200,7 +200,7 @@ export default function AdminManagement() {
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="bg-sheet border border-rule rounded-[2px] text-ink px-4 py-2 focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors text-sm"
+            className="bg-sheet border border-rule rounded-lg text-ink px-4 py-2 focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors text-sm"
           >
             <option value="">All Roles</option>
             <option value="EMPLOYEE">Employees</option>
@@ -215,7 +215,7 @@ export default function AdminManagement() {
           </button>
           <button
             onClick={() => { resetForm(); setIsModalOpen(true); }}
-            className="flex items-center gap-2 bg-brass text-sheet px-4 py-2 font-semibold text-xs uppercase tracking-[0.08em] hover:bg-[#6B560E] transition-colors whitespace-nowrap"
+            className="flex items-center gap-2 bg-red text-sheet px-4 py-2 font-semibold text-xs uppercase tracking-[0.08em] hover:bg-[#6E1224] transition-colors whitespace-nowrap"
           >
             <UserPlus className="h-4 w-4" /> Add User
           </button>
@@ -225,10 +225,10 @@ export default function AdminManagement() {
       {/* Add/Edit User Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-sm">
-          <div className="bg-sheet w-full max-w-2xl shadow-overlay overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-sheet w-full max-w-2xl shadow-overlay rounded-xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-rule flex justify-between items-center">
               <h2 className="font-ledger text-[1.125rem] font-semibold text-ink flex items-center gap-2">
-                {editingId ? <><Edit2 className="h-4 w-4 text-brass" /> Edit User Record</> : <><UserPlus className="h-4 w-4 text-brass" /> Create New User</>}
+                {editingId ? <><Edit2 className="h-4 w-4 text-red" /> Edit User Record</> : <><UserPlus className="h-4 w-4 text-red" /> Create New User</>}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-ink-soft hover:text-ink transition-colors">
                 <X className="h-5 w-5" />
@@ -244,7 +244,7 @@ export default function AdminManagement() {
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                     placeholder="john@certiflow.com"
                   />
                 </div>
@@ -253,7 +253,7 @@ export default function AdminManagement() {
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({...formData, role: e.target.value})}
-                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                   >
                     <option value="EMPLOYEE">Employee</option>
                     <option value="GENERAL_ADMIN">General Admin</option>
@@ -269,7 +269,7 @@ export default function AdminManagement() {
                     type="text"
                     value={formData.first_name}
                     onChange={(e) => setFormData({...formData, first_name: e.target.value})}
-                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                     placeholder="John"
                   />
                 </div>
@@ -279,7 +279,7 @@ export default function AdminManagement() {
                     type="text"
                     value={formData.last_name}
                     onChange={(e) => setFormData({...formData, last_name: e.target.value})}
-                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                     placeholder="Doe"
                   />
                 </div>
@@ -292,7 +292,7 @@ export default function AdminManagement() {
                     type="text"
                     value={formData.emp_id}
                     onChange={(e) => setFormData({...formData, emp_id: e.target.value})}
-                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                     placeholder="EMP-XXXX"
                   />
                 </div>
@@ -302,7 +302,7 @@ export default function AdminManagement() {
                     type="text"
                     value={formData.thai_id}
                     onChange={(e) => setFormData({...formData, thai_id: e.target.value})}
-                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                     placeholder="13 Digits"
                   />
                 </div>
@@ -315,7 +315,7 @@ export default function AdminManagement() {
                     type="text"
                     value={formData.passport_no}
                     onChange={(e) => setFormData({...formData, passport_no: e.target.value})}
-                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                     placeholder="Alternative ID"
                   />
                 </div>
@@ -325,7 +325,7 @@ export default function AdminManagement() {
                     type="text"
                     value={formData.department}
                     onChange={(e) => setFormData({...formData, department: e.target.value})}
-                    className="w-full bg-sheet border border-rule rounded-[2px] px-4 py-2.5 text-ink focus:outline-none focus:border-brass focus:shadow-[inset_0_-2px_0_0_#8A6D1F] transition-colors"
+                    className="w-full bg-sheet border border-rule rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-red focus:shadow-[inset_0_-2px_0_0_#C41230] transition-colors"
                     placeholder="Human Resources"
                   />
                 </div>
@@ -342,7 +342,7 @@ export default function AdminManagement() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-[2] bg-brass text-sheet py-3 font-semibold text-xs uppercase tracking-[0.08em] hover:bg-[#6B560E] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-[2] bg-red text-sheet py-3 font-semibold text-xs uppercase tracking-[0.08em] hover:bg-[#6E1224] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</> : <><ShieldCheck className="h-4 w-4" /> {editingId ? 'Update Record' : 'Confirm Create'}</>}
                 </button>
@@ -365,7 +365,7 @@ export default function AdminManagement() {
             </div>
           )}
 
-          <div className="bg-sheet shadow-sheet border border-rule overflow-hidden">
+          <div className="bg-sheet shadow-sheet border border-rule rounded-xl overflow-hidden">
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-sm whitespace-nowrap">
                 <thead className="border-b-2 border-rule-strong">
@@ -397,7 +397,7 @@ export default function AdminManagement() {
                             <button
                               onClick={() => handleResetPassword(u.id, u.role)}
                               disabled={resettingId === u.id || (user?.role === 'GENERAL_ADMIN' && u.role !== 'EMPLOYEE')}
-                              className="text-[0.6875rem] uppercase tracking-[0.08em] font-semibold text-ink-soft hover:text-brass transition-colors disabled:opacity-30 disabled:hover:text-ink-soft"
+                              className="text-[0.6875rem] uppercase tracking-[0.08em] font-semibold text-ink-soft hover:text-red transition-colors disabled:opacity-30 disabled:hover:text-ink-soft"
                               title="Reset to last 6 digits of ID"
                             >
                               Reset PW
@@ -429,7 +429,7 @@ export default function AdminManagement() {
               </table>
             </div>
 
-            {/* Mobile: stacked ledger slips */}
+            {/* Mobile: stacked cards */}
             <div className="md:hidden">
               {isLoading && users.length === 0 ? (
                 <div className="p-10 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto text-ink-soft" /></div>
@@ -451,7 +451,7 @@ export default function AdminManagement() {
                       <button
                         onClick={() => handleResetPassword(u.id, u.role)}
                         disabled={resettingId === u.id || (user?.role === 'GENERAL_ADMIN' && u.role !== 'EMPLOYEE')}
-                        className="text-[0.6875rem] uppercase tracking-[0.08em] font-semibold text-ink-soft hover:text-brass transition-colors disabled:opacity-30 disabled:hover:text-ink-soft"
+                        className="text-[0.6875rem] uppercase tracking-[0.08em] font-semibold text-ink-soft hover:text-red transition-colors disabled:opacity-30 disabled:hover:text-ink-soft"
                       >
                         Reset PW
                       </button>
@@ -477,19 +477,19 @@ export default function AdminManagement() {
         <div className="space-y-4">
           <BulkUpload onUploadComplete={fetchUsers} />
 
-          <div className="bg-sheet shadow-sheet border border-rule p-6">
+          <div className="bg-sheet shadow-sheet border border-rule rounded-xl p-6">
             <h3 className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft border-b border-rule-strong pb-2 mb-3">System Policies</h3>
             <ul className="space-y-2.5 text-sm text-ink-soft">
               <li className="flex gap-2">
-                <span className="text-brass">—</span>
+                <span className="text-red">—</span>
                 <span>Super Admins can manage all roles including other Admins.</span>
               </li>
               <li className="flex gap-2">
-                <span className="text-brass">—</span>
+                <span className="text-red">—</span>
                 <span>General Admins can only reset Employee passwords.</span>
               </li>
               <li className="flex gap-2">
-                <span className="text-brass">—</span>
+                <span className="text-red">—</span>
                 <span>Default password for new/reset accounts is last 6 digits of Thai ID or Passport.</span>
               </li>
             </ul>

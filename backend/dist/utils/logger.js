@@ -10,12 +10,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SystemLogger = void 0;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = require("./prisma");
 exports.SystemLogger = {
-    logAction(actorId, actorRole, action, targetId, details) {
+    logAction(actorId, actorRole, action, targetId, details, env) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
+                const prisma = (0, prisma_1.getPrisma)(env.DATABASE_URL);
                 yield prisma.systemAuditLog.create({
                     data: {
                         actorId,

@@ -2,13 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/hireflow.svg" />
+    <link rel="icon" type="image/svg+xml" href="/marriott-m.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CertiFlow</title>
+    <title>CertiFlow — Marriott Marquis Bangkok Queen's Park</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&family=Cinzel:wght@600&family=Spectral:wght@500;600&family=Inter:wght@400;600&family=Noto+Serif+Thai:wght@500;600&family=Noto+Sans+Thai:wght@400;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
   </head>
@@ -21,37 +21,36 @@
         theme: {
           extend: {
             colors: {
-              "brand-red": "#A0072B",
-              "brand-dark": "#262324",
-              "brand-surface": "#312D2E",
-              // Concierge Ledger (DESIGN.md)
-              ink: "#211C14",
-              "ink-soft": "#5C5342",
-              paper: "#F1EADB",
-              sheet: "#FBF8F0",
-              "sheet-alt": "#F5EFE1",
-              rule: "#DED3BC",
-              "rule-strong": "#C7B996",
-              brass: "#8A6D1F",
-              "brass-bright": "#C9A84C",
-              binding: "#241D16",
-              "binding-soft": "#3A2F24",
-              "status-pending": "#8A6410",
-              "status-interview": "#2C5578",
-              "status-approved": "#3E6B4A",
-              "status-completed": "#6A4B86",
-              "status-rejected": "#9B3B36",
+              // Modern Marriott Marquis identity (DESIGN.md) — red, ink, grey
+              ink: "#1B1B1D",
+              "ink-soft": "#6B6B70",
+              paper: "#F5F5F6",
+              sheet: "#FFFFFF",
+              "sheet-alt": "#F8F8F9",
+              rule: "#E4E4E7",
+              "rule-strong": "#D0D0D5",
+              red: "#9A1B32",
+              "red-dark": "#6E1224",
+              "red-bright": "#C41230",
+              binding: "#141416",
+              "binding-soft": "#26262A",
+              "status-pending": "#B45309",
+              "status-interview": "#2563EB",
+              "status-approved": "#15803D",
+              "status-completed": "#7C3AED",
+              "status-rejected": "#52525B",
             },
             fontFamily: {
-              sans: ["Prompt", "sans-serif"],
-              // Concierge Ledger (DESIGN.md)
-              crest: ["Cinzel", "Noto Serif Thai", "Georgia", "serif"],
-              ledger: ["Spectral", "Noto Serif Thai", "Georgia", "serif"],
+              sans: ["Inter", "Noto Sans Thai", "system-ui", "sans-serif"],
+              // Legacy token names kept so existing component classes stay valid;
+              // all now resolve to the same modern sans (no serif in this world).
+              crest: ["Inter", "Noto Sans Thai", "system-ui", "sans-serif"],
+              ledger: ["Inter", "Noto Sans Thai", "system-ui", "sans-serif"],
               data: ["Inter", "Noto Sans Thai", "system-ui", "sans-serif"],
             },
             boxShadow: {
-              sheet: "0 1px 0 rgba(255,255,255,0.6) inset, 0 10px 28px -18px rgba(36,29,22,0.30)",
-              overlay: "0 24px 60px -20px rgba(36,29,22,0.45)",
+              sheet: "0 1px 2px 0 rgba(20,20,22,0.04), 0 6px 20px -8px rgba(20,20,22,0.10)",
+              overlay: "0 24px 60px -20px rgba(20,20,22,0.35)",
             },
           },
         },

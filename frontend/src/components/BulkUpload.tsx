@@ -72,25 +72,25 @@ export default function BulkUpload({ onUploadComplete }: { onUploadComplete?: ()
   };
 
   return (
-    <div className="bg-sheet shadow-sheet border border-rule p-6 space-y-4 font-data">
+    <div className="bg-sheet shadow-sheet border border-rule rounded-xl p-6 space-y-4 font-data">
       <div>
         <h2 className="font-ledger text-[0.72rem] font-semibold uppercase tracking-[0.14em] text-ink-soft border-b border-rule-strong pb-2 mb-1 flex items-center gap-2">
-          <Upload className="h-3.5 w-3.5 text-brass" /> Bulk Employee Onboarding
+          <Upload className="h-3.5 w-3.5 text-red" /> Bulk Employee Onboarding
         </h2>
       </div>
 
       <p className="text-ink-soft text-sm">
-        Upload a CSV file with headers: <code className="text-brass">emp_id, first_name, last_name, email, thai_id, department, position</code>
+        Upload a CSV file with headers: <code className="text-red">emp_id, first_name, last_name, email, thai_id, department, position</code>
       </p>
 
-      <div className="relative border border-dashed border-rule p-8 flex flex-col items-center justify-center hover:border-brass transition-colors group cursor-pointer">
+      <div className="relative border border-dashed border-rule p-8 flex flex-col items-center justify-center hover:border-red transition-colors group cursor-pointer">
         <input
           type="file"
           accept=".csv"
           onChange={handleFileChange}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
-        <FileText className={`h-8 w-8 mb-2 transition-colors ${file ? 'text-brass' : 'text-ink-soft/50 group-hover:text-ink-soft'}`} />
+        <FileText className={`h-8 w-8 mb-2 transition-colors ${file ? 'text-red' : 'text-ink-soft/50 group-hover:text-ink-soft'}`} />
         <p className="text-ink-soft font-medium text-sm text-center">
           {file ? file.name : 'Click or drag CSV file to upload'}
         </p>
@@ -106,7 +106,7 @@ export default function BulkUpload({ onUploadComplete }: { onUploadComplete?: ()
       <button
         onClick={handleUpload}
         disabled={!file || isUploading}
-        className="w-full bg-brass text-sheet py-3 font-semibold text-xs uppercase tracking-[0.08em] hover:bg-[#6B560E] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full bg-red text-sheet py-3 font-semibold text-xs uppercase tracking-[0.08em] hover:bg-[#6E1224] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isUploading ? (
           <><Loader2 className="h-4 w-4 animate-spin" /> Processing...</>
