@@ -10,7 +10,8 @@
       "Bash(npx prisma *)",
       "Bash(npx tsc *)",
       "Bash(npm run *)",
-      "Bash(npx wrangler *)"
+      "Bash(npx wrangler *)",
+      "Bash(git status *)"
     ]
   }
 }
