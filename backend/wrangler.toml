@@ -5,6 +5,10 @@ compatibility_flags = [ "nodejs_compat" ]
 
 [vars]
 NODE_ENV = "production"
+# Set to your Cloudflare Pages URL once frontend is deployed (comma-separated if multiple).
+FRONTEND_URL = "https://certiflow.pages.dev"
 
-# Note: DATABASE_URL and JWT_SECRET should be set via 'wrangler secret put' 
-# or in the Cloudflare Dashboard for production.
+# Secrets (never put these in [vars] / commit them) — set via:
+#   wrangler secret put DATABASE_URL
+#   wrangler secret put DIRECT_URL
+#   wrangler secret put JWT_SECRET
